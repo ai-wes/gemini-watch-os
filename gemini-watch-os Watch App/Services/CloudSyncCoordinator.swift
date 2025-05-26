@@ -8,8 +8,9 @@ class CloudSyncCoordinator {
 
     // MARK: - Properties
     
-    private let container: CKContainer
-    private let privateDB: CKDatabase
+    private let container: CKContainer?
+    private let privateDB: CKDatabase?
+    private let isPreviewMode: Bool
     // private let sharedDB: CKDatabase // If using shared data with other iCloud users
 
     // Define record types (these should match your CloudKit schema)
@@ -20,21 +21,41 @@ class CloudSyncCoordinator {
     // MARK: - Initialization
     
     init(containerIdentifier: String? = nil) {
+        // Skip CloudKit initialization during SwiftUI previews
+        #if DEBUG
+        self.isPreviewMode = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        #else
+        self.isPreviewMode = false
+        #endif
+        
+        if isPreviewMode {
+            // Don't initialize CloudKit during previews
+            self.container = nil
+            self.privateDB = nil
+            print("CloudSyncCoordinator initialized in preview mode - CloudKit disabled")
+            return
+        }
+        
         if let identifier = containerIdentifier {
             self.container = CKContainer(identifier: identifier)
         } else {
             self.container = CKContainer.default()
         }
-        self.privateDB = container.privateCloudDatabase
+        self.privateDB = container?.privateCloudDatabase
         // self.sharedDB = container.sharedCloudDatabase
         
-        print("CloudSyncCoordinator initialized with container: \(self.container.containerIdentifier ?? "default")")
+        print("CloudSyncCoordinator initialized with container: \(self.container?.containerIdentifier ?? "default")")
         checkAccountStatus()
     }
 
     // MARK: - Account Status
     
     func checkAccountStatus(completion: ((CKAccountStatus, Error?) -> Void)? = nil) {
+        guard !isPreviewMode, let container = container else {
+            completion?(.available, nil)
+            return
+        }
+        
         container.accountStatus { status, error in
             if let error = error {
                 print("CloudKit account status error: \(error.localizedDescription)")
@@ -62,15 +83,12 @@ class CloudSyncCoordinator {
 
     /// Saves a `UserPreference` to CloudKit.
     func saveUserPreference(_ preference: UserPreference, completion: @escaping (Result<CKRecord, Error>) -> Void) {
-        // Skip CloudKit operations during SwiftUI previews
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+        guard !isPreviewMode, let privateDB = privateDB else {
             let recordID = CKRecord.ID(recordName: preference.key)
             let record = CKRecord(recordType: CloudSyncCoordinator.recordTypeUserPreference, recordID: recordID)
             completion(.success(record))
             return
         }
-        #endif
         let recordID = CKRecord.ID(recordName: preference.key) // Use preference.key as a unique ID
         let record = CKRecord(recordType: CloudSyncCoordinator.recordTypeUserPreference, recordID: recordID)
         record["value"] = preference.value as CKRecordValue
@@ -95,6 +113,11 @@ class CloudSyncCoordinator {
 
     /// Fetches a `UserPreference` from CloudKit.
     func fetchUserPreference(key: String, completion: @escaping (Result<UserPreference, Error>) -> Void) {
+        guard !isPreviewMode, let privateDB = privateDB else {
+            completion(.failure(NSError(domain: "CloudSyncCoordinator", code: 0, userInfo: [NSLocalizedDescriptionKey: "Preview mode - no data available"])))
+            return
+        }
+        
         let recordID = CKRecord.ID(recordName: key)
         privateDB.fetch(withRecordID: recordID) { record, error in
             if let error = error {
@@ -112,13 +135,10 @@ class CloudSyncCoordinator {
     
     /// Fetches all `UserPreference` records.
     func fetchAllUserPreferences(completion: @escaping (Result<[UserPreference], Error>) -> Void) {
-        // Skip CloudKit operations during SwiftUI previews
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+        guard !isPreviewMode, let privateDB = privateDB else {
             completion(.success([]))
             return
         }
-        #endif
         
         let query = CKQuery(recordType: CloudSyncCoordinator.recordTypeUserPreference, predicate: NSPredicate(value: true))
         let operation = CKQueryOperation(query: query)
@@ -154,6 +174,11 @@ class CloudSyncCoordinator {
     // MARK: - Subscriptions (Push Notifications for Changes)
 
     func subscribeToPreferenceChanges(completion: @escaping (Error?) -> Void) {
+        guard !isPreviewMode, let privateDB = privateDB else {
+            completion(nil)
+            return
+        }
+        
         let subscriptionID = "user-preferences-changed"
         
         // Check if subscription already exists
@@ -185,7 +210,8 @@ class CloudSyncCoordinator {
             // notificationInfo.alertBody = "Preferences updated" // Optional: for user-visible alerts
             newSubscription.notificationInfo = notificationInfo
             
-            self.privateDB.save(newSubscription) { _, error in
+            guard let privateDB = self.privateDB else { return }
+            privateDB.save(newSubscription) { _, error in
                 if let error = error {
                     print("Error saving subscription to CloudKit: \(error.localizedDescription)")
                 } else {
@@ -197,6 +223,11 @@ class CloudSyncCoordinator {
     }
     
     func unsubscribeFromPreferenceChanges(completion: @escaping (Error?) -> Void) {
+        guard !isPreviewMode, let privateDB = privateDB else {
+            completion(nil)
+            return
+        }
+        
         let subscriptionID = "user-preferences-changed"
         privateDB.delete(withSubscriptionID: subscriptionID) { (id, error) in 
             if let error = error {
