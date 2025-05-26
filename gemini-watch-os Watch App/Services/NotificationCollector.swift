@@ -38,7 +38,7 @@ class NotificationCollector: UNNotificationServiceExtension {
 
             // Create a NotificationEvent (assuming this will be saved to Core Data later)
             // For now, we're just logging. The actual storage will be handled by a data persistence service.
-            let notificationEvent = NotificationEvent(
+            let _ = NotificationEvent(
                 id: UUID(), // Or derive from request identifier if appropriate
                 date: timestamp,
                 appName: bundleID, // Using bundleID for appName

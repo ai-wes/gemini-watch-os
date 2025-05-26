@@ -1,4 +1,3 @@
-
 // filepath: /Users/wes/Desktop/NotiZeniOS/NotiZenWatch Watch App/UI/Views/DigestPreviewSheetView.swift
 import SwiftUI
 
@@ -77,13 +76,13 @@ struct DigestPreviewSheetView: View {
         .cornerRadius(DesignTokens.Layout.cornerRadiusMedium) // PRD: 16pt for modal sheets
         .onAppear {
             // PRD Haptics: .warning when digest created
-            WKInterfaceDevice.current().play(.failure)
+            HapticManager.shared.failure()
         }
         .sheet(isPresented: $navigateToDigestList) { // Using .sheet for "View List" for now
             // Placeholder for DigestListView - PRD doesn't specify this view in detail yet
             // For now, it can be a simple list of all digestItems
             NavigationView {
-                DigestListView(digestItems: appState.digestItems)
+                DigestListView()
             }
         }
     }

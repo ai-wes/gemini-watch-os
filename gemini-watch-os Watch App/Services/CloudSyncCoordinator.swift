@@ -62,6 +62,15 @@ class CloudSyncCoordinator {
 
     /// Saves a `UserPreference` to CloudKit.
     func saveUserPreference(_ preference: UserPreference, completion: @escaping (Result<CKRecord, Error>) -> Void) {
+        // Skip CloudKit operations during SwiftUI previews
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            let recordID = CKRecord.ID(recordName: preference.key)
+            let record = CKRecord(recordType: CloudSyncCoordinator.recordTypeUserPreference, recordID: recordID)
+            completion(.success(record))
+            return
+        }
+        #endif
         let recordID = CKRecord.ID(recordName: preference.key) // Use preference.key as a unique ID
         let record = CKRecord(recordType: CloudSyncCoordinator.recordTypeUserPreference, recordID: recordID)
         record["value"] = preference.value as CKRecordValue
@@ -103,20 +112,34 @@ class CloudSyncCoordinator {
     
     /// Fetches all `UserPreference` records.
     func fetchAllUserPreferences(completion: @escaping (Result<[UserPreference], Error>) -> Void) {
+        // Skip CloudKit operations during SwiftUI previews
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            completion(.success([]))
+            return
+        }
+        #endif
+        
         let query = CKQuery(recordType: CloudSyncCoordinator.recordTypeUserPreference, predicate: NSPredicate(value: true))
-        privateDB.fetch(with: query, inZoneWith: nil, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
+        let operation = CKQueryOperation(query: query)
+        operation.resultsLimit = CKQueryOperation.maximumResults
+        
+        var preferences: [UserPreference] = []
+        
+        operation.recordMatchedBlock = { recordID, recordResult in
+            switch recordResult {
+            case .success(let record):
+                guard let value = record["value"] as? Data else { return }
+                let preference = UserPreference(key: record.recordID.recordName, value: value)
+                preferences.append(preference)
+            case .failure(let error):
+                print("Error fetching individual record \(recordID): \(error.localizedDescription)")
+            }
+        }
+        
+        operation.queryResultBlock = { result in
             switch result {
-            case .success(let (matchResults, _)): // CKQueryOperation.FetchResults includes matchResults and a cursor
-                let preferences = matchResults.compactMap { (recordID, recordResult) -> UserPreference? in
-                    switch recordResult {
-                    case .success(let record):
-                        guard let value = record["value"] as? Data else { return nil }
-                        return UserPreference(key: record.recordID.recordName, value: value)
-                    case .failure(let error):
-                        print("Error fetching individual record \(recordID): \(error.localizedDescription)")
-                        return nil
-                    }
-                }
+            case .success:
                 print("Fetched \(preferences.count) UserPreferences from CloudKit.")
                 completion(.success(preferences))
             case .failure(let error):
@@ -124,6 +147,8 @@ class CloudSyncCoordinator {
                 completion(.failure(error))
             }
         }
+        
+        privateDB.add(operation)
     }
 
     // MARK: - Subscriptions (Push Notifications for Changes)

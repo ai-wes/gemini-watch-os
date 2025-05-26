@@ -20,7 +20,7 @@ struct DigestListView: View {
                 } else {
                     List {
                         ForEach(appState.lowPriorityNotifications) { notification in
-                            NotificationRowView(notification: notification, isInteractive: false) // Not interactive, just for viewing
+                            NotificationRowView(notification: WatchNotificationItem(id: notification.id, title: notification.title ?? notification.appName, messageSnippet: notification.message, timestamp: notification.date, type: .lowPriority)) // Not interactive, just for viewing
                         }
                     }
                     .listStyle(.carousel)
@@ -45,8 +45,8 @@ struct DigestListView_Previews: PreviewProvider {
     static var previews: some View {
         let appState = WatchAppState()
         appState.lowPriorityNotifications = [
-            NotificationEvent(appName: "Email", title: "Newsletter", body: "Weekly updates and offers.", timestamp: Date(), category: "Promotions", priority: .low, appIcon: "envelope.fill"),
-            NotificationEvent(appName: "SocialApp", title: "New Follower", body: "Someone followed you.", timestamp: Date().addingTimeInterval(-60*30), category: "Social", priority: .low, appIcon: "person.2.fill")
+            NotificationEvent(id: UUID(), date: Date(), appName: "Email", bundleID: "com.email.app", title: "Newsletter", message: "Weekly updates and offers.", category: "Promotions", score: 0.3),
+            NotificationEvent(id: UUID(), date: Date().addingTimeInterval(-60*30), appName: "SocialApp", bundleID: "com.social.app", title: "New Follower", message: "Someone followed you.", category: "Social", score: 0.2)
         ]
         return DigestListView()
             .environmentObject(appState)
