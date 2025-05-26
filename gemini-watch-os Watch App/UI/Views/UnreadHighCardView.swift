@@ -1,4 +1,3 @@
-
 // filepath: /Users/wes/Desktop/NotiZeniOS/NotiZenWatch Watch App/UI/Views/UnreadHighCardView.swift
 import SwiftUI
 
@@ -11,18 +10,18 @@ struct UnreadHighCardView: View {
         VStack(alignment: .leading) {
             HStack {
                 Image(systemName: "bell.badge.fill") // PRD Iconography
-                    .foregroundColor(Color.accentHigh) // PRD Palette
+                    .foregroundColor(DesignTokens.Color.accentHigh) // PRD Palette
                 Text("\(count) critical")
-                    .font(.watchHeadline) // PRD Typography
+                    .font(DesignTokens.Typography.watchHeadline) // PRD Typography
             }
             Text(latestMessage)
-                .font(.watchCaption)
+                .font(DesignTokens.Typography.watchCaption)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(LayoutTokens.spacing2) // PRD Grid
-        .background(Color.tileDark) // PRD Palette
-        .cornerRadius(LayoutTokens.cornerRadiusMedium) // PRD Shapes (using medium as per new DesignTokens)
+        .padding(DesignTokens.Layout.spacing2) // PRD Grid
+        .background(DesignTokens.Color.tileDark) // PRD Palette
+        .cornerRadius(DesignTokens.Layout.cornerRadiusMedium) // PRD Shapes
     }
 }
 

@@ -17,28 +17,28 @@ struct SettingsMenuView: View {
         NavigationView { // Each settings section might navigate
             List {
                 Section(header: Text("Notification Settings").font(DesignTokens.Typography.watchCaption)) {
-                    NavigationLink(destination: CategoriesSettingsView(), isActive: $navigateToCategories) {
+                    NavigationLink(destination: CategoriesSettingsView()) {
                         Label("Categories", systemImage: "list.bullet.indent")
                     }
-                    NavigationLink(destination: DigestTimeSettingsView(), isActive: $navigateToDigestTime) {
+                    NavigationLink(destination: DigestTimeSettingsView()) {
                         Label("Digest Time", systemImage: "clock.arrow.2.circlepath")
                     }
                 }
 
                 Section(header: Text("System").font(DesignTokens.Typography.watchCaption)) {
-                    NavigationLink(destination: BatteryGuardSettingsView(), isActive: $navigateToBatteryGuard) {
+                    NavigationLink(destination: BatteryGuardSettingsView()) {
                         Label("Battery Guard", systemImage: "battery.100.bolt")
                     }
                 }
                 
                 Section(header: Text("Application").font(DesignTokens.Typography.watchCaption)) {
-                    NavigationLink(destination: AboutSettingsView(), isActive: $navigateToAbout) {
+                    NavigationLink(destination: AboutSettingsView()) {
                         Label("About NotiZen", systemImage: "info.circle")
                     }
                 }
             }
             .navigationTitle("Settings")
-            .listStyle(.grouped) // Standard for settings menus
+            .listStyle(.plain) // Standard for settings menus
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(DesignTokens.Color.surfaceDark)
         }

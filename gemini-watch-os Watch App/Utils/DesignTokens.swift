@@ -1,26 +1,11 @@
 import SwiftUI
 import Foundation
+import WatchKit
 
 // MARK: - Design Tokens for NotiZen (WatchOS)
 
 // Note: This is a watchOS-specific version.
 // Some tokens might be shared with iOS, others might be watch-specific.
-
-extension Color {
-    // Color Palette (Shared or adapted for watch)
-    static let surfaceDark = Color(hex: "0D0D0F") // Typically black for watchOS
-    static let tileDark = Color(hex: "1A1A1D")    // Dark gray for elements
-    static let accentHigh = Color(hex: "3DDC97")  // Green for positive actions/info
-    static let accentMed = Color(hex: "6F7DFC")   // Blue for neutral actions/info
-    static let accentLow = Color(hex: "8E8E93")   // Gray for secondary info/controls
-    static let errorColor = Color(hex: "FF453A")  // Red for errors
-
-    // Light mode variants (Less common on watchOS, but good for completeness)
-    // For watchOS, these might be adapted for "always on display" low-power states
-    // or if a light theme is explicitly offered.
-    static let surfaceLight = Color.white // Or a very light gray
-    static let tileLight = Color(hex: "F2F2F7") // Light gray for elements in a light theme
-}
 
 // MARK: - Color Hex Initializer (Shared)
 extension Color {
@@ -51,49 +36,41 @@ extension Color {
     }
 }
 
-// MARK: - Typography Tokens (WatchOS Specific)
-extension Font {
-    // Watch Typography - using system fonts is generally preferred for accessibility and dynamic type.
-    // Custom fonts are possible but ensure they are bundled with the watchOS target.
-    // These definitions assume "SF Compact" is the desired custom font.
-    // If using system fonts, prefer .system(size:weight:design:) with .compactRounded design.
-
-    static let watchTitle = Font.system(.title3, design: .rounded).weight(.bold) // Adjusted for typical watch title
-    static let watchHeadline = Font.system(.headline, design: .rounded).weight(.semibold)
-    static let watchBody = Font.system(.body, design: .rounded)
-    static let watchCallout = Font.system(.callout, design: .rounded)
-    static let watchSubheadline = Font.system(.subheadline, design: .rounded)
-    static let watchFootnote = Font.system(.footnote, design: .rounded)
-    static let watchCaption = Font.system(.caption, design: .rounded)
-    static let watchCaption2 = Font.system(.caption2, design: .rounded)
+// MARK: - Design Tokens Namespace
+struct DesignTokens {
+    // MARK: - Color Tokens
+    struct Color {
+        static let surfaceDark = SwiftUI.Color(hex: "0D0D0F")
+        static let tileDark = SwiftUI.Color(hex: "1A1A1D")
+        static let accentHigh = SwiftUI.Color(hex: "3DDC97")
+        static let accentMed = SwiftUI.Color(hex: "6F7DFC")
+        static let accentLow = SwiftUI.Color(hex: "8E8E93")
+        static let error = SwiftUI.Color(hex: "FF453A")
+    }
     
-    // Example of a custom font if "SF Compact" was bundled and registered
-    // static let customWatchHeadline = Font.custom("SF Compact Semibold", size: 15, relativeTo: .headline)
+    // MARK: - Typography Tokens
+    struct Typography {
+        static let watchBody = Font.system(.body, design: .rounded)
+        static let watchHeadline = Font.system(.headline, design: .rounded).weight(.semibold)
+        static let watchCaption = Font.system(.caption, design: .rounded)
+        static let watchTitle = Font.system(.title3, design: .rounded).weight(.bold)
+        static let watchFootnote = Font.system(.footnote, design: .rounded)
+    }
+    
+    // MARK: - Layout Tokens
+    struct Layout {
+        static let spacing0_5: CGFloat = 1
+        static let spacing1: CGFloat = 2
+        static let spacing2: CGFloat = 4
+        static let spacing3: CGFloat = 6
+        static let cornerRadius: CGFloat = 8
+        static let cornerRadiusSmall: CGFloat = 6
+        static let cornerRadiusMedium: CGFloat = 10
+        static let safeAreaInset: CGFloat = 4
+        static let watchSafePadding: CGFloat = 8
+    }
 }
 
-// MARK: - Spacing & Layout Tokens (WatchOS Specific)
-struct LayoutTokens {
-    static let baseGrid: CGFloat = 2 // WatchOS often uses tighter spacing
-    static let cornerRadiusSmall: CGFloat = 6 // For smaller elements
-    static let cornerRadiusMedium: CGFloat = 10 // For cards or larger elements
-    static let cornerRadiusLarge: CGFloat = 12 // For full-width buttons or sheets
-    
-    static let cardHeightSmall: CGFloat = 60 // Example for a small info card
-    static let cardHeightMedium: CGFloat = 90 // Example for a medium content card
-    
-    static let screenPadding: CGFloat = 4 // Padding from screen edges
-    static let listRowPaddingVertical: CGFloat = 6
-    static let listRowPaddingHorizontal: CGFloat = 8
-    
-    // Spacing based on grid
-    static let spacing1 = baseGrid * 1  // 2
-    static let spacing2 = baseGrid * 2  // 4
-    static let spacing3 = baseGrid * 3  // 6
-    static let spacing4 = baseGrid * 4  // 8
-    static let spacing5 = baseGrid * 5  // 10
-    static let spacing6 = baseGrid * 6  // 12
-    static let spacing8 = baseGrid * 8  // 16
-}
 
 // MARK: - Shadow Tokens (Generally less common/subtle on watchOS due to dark UIs)
 struct ShadowTokens {
@@ -141,35 +118,6 @@ class HapticManager {
     // Add more as needed based on WKHapticType enum
 }
 
-// Add this to the DesignTokens namespace
-extension DesignTokens {
-    struct Color {
-        static let surfaceDark = SwiftUI.Color(hex: "0D0D0F")
-        static let tileDark = SwiftUI.Color(hex: "1A1A1D")
-        static let accentHigh = SwiftUI.Color(hex: "3DDC97")
-        static let accentMed = SwiftUI.Color(hex: "6F7DFC")
-        static let accentLow = SwiftUI.Color(hex: "8E8E93")
-        static let error = SwiftUI.Color(hex: "FF453A")
-    }
-    
-    struct Typography {
-        static let watchBody = Font.system(.body, design: .rounded)
-        static let watchHeadline = Font.system(.headline, design: .rounded).weight(.semibold)
-        static let watchCaption = Font.system(.caption, design: .rounded)
-        static let watchTitle = Font.system(.title3, design: .rounded).weight(.bold)
-        static let watchFootnote = Font.system(.footnote, design: .rounded)
-    }
-    
-    struct Layout {
-        static let spacing0_5: CGFloat = 1
-        static let spacing1: CGFloat = 2
-        static let spacing2: CGFloat = 4
-        static let spacing3: CGFloat = 6
-        static let cornerRadiusSmall: CGFloat = 6
-        static let cornerRadiusMedium: CGFloat = 10
-        static let safeAreaInset: CGFloat = 4
-    }
-}
 
 // It's crucial to ensure that any custom fonts are correctly added to the
 // watchOS app target and listed in its Info.plist under "Fonts provided by application".

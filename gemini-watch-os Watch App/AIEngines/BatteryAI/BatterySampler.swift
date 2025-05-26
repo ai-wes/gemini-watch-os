@@ -87,7 +87,7 @@ class BatterySampler: NSObject {
     }
 }
 
-extension WatchKit.WKInterfaceDevice.BatteryState {
+extension WKInterfaceDeviceBatteryState {
     var name: String {
         switch self {
         case .unknown: return "Unknown"

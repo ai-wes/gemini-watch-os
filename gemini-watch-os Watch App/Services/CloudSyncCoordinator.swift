@@ -1,5 +1,3 @@
-\
-// filepath: /Users/wes/Desktop/NotiZeniOS/NotiZenWatch Watch App/Services/CloudSyncCoordinator.swift
 import Foundation
 import CloudKit
 
@@ -180,7 +178,7 @@ class CloudSyncCoordinator {
 
     // MARK: - Handling Remote Notifications (from AppDelegate or SceneDelegate)
     
-    func handleRemoteNotification(userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (WKBackgroundFetchResult) -> Void) {
+    func handleRemoteNotification(userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         if let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) as? CKQueryNotification {
             print("Received CloudKit Query Notification: \(notification.queryNotificationReason)")
             // TODO: Fetch the changed record(s) based on notification.recordID
@@ -188,9 +186,9 @@ class CloudSyncCoordinator {
             //    fetchAndProcessRecord(notification.recordID!)
             // }
             // After processing, call completionHandler with .newData, .noData, or .failed
-            completionHandler(.newData) // Assuming new data was fetched and processed
+            completionHandler(true) // Assuming new data was fetched and processed
         } else {
-            completionHandler(.noData)
+            completionHandler(false)
         }
     }
 

@@ -1,4 +1,3 @@
-
 // filepath: /Users/wes/Desktop/NotiZeniOS/NotiZenWatch Watch App/UI/Views/BatteryHoursCardView.swift
 import SwiftUI
 
@@ -9,25 +8,16 @@ struct BatteryHoursCardView: View {
         VStack(alignment: .leading) {
             HStack {
                 Image(systemName: "bolt.fill") // PRD Iconography
-                    .foregroundColor(Color.accentMed) // PRD Palette
+                    .foregroundColor(DesignTokens.Color.accentMed) // PRD Palette
                 Text("\(hours) h")
-                    .font(.watchHeadline) // PRD Typography
+                    .font(DesignTokens.Typography.watchHeadline) // PRD Typography
             }
             Text("Estimated remaining")
-                .font(.watchCaption)
+                .font(DesignTokens.Typography.watchCaption)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(LayoutTokens.spacing2)
-        .background(Color.tileDark)
-        .cornerRadius(LayoutTokens.cornerRadiusMedium) // PRD Shapes
+        .padding(DesignTokens.Layout.spacing2)
+        .background(DesignTokens.Color.tileDark)
+        .cornerRadius(DesignTokens.Layout.cornerRadius)
     }
 }
-
-#if DEBUG
-struct BatteryHoursCardView_Previews: PreviewProvider {
-    static var previews: some View {
-        BatteryHoursCardView(hours: 18)
-            .frame(width: 150, height: 80) // Example frame for preview
-    }
-}
-#endif

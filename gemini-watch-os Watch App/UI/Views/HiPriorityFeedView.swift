@@ -87,9 +87,9 @@ struct HiPriorityFeedView_Previews: PreviewProvider {
         let appState = WatchAppState()
         // Populate with some data for preview
         appState.highPriorityFeed = [
-            NotificationEvent(id: UUID(), date: Date(), bundleID: "com.apple.mail", title: "Re: Project Phoenix Deadline", category: "Work", score: 0.92),
-            NotificationEvent(id: UUID(), date: Date().addingTimeInterval(-300), bundleID: "com.mybank.app", title: "Large transaction detected on your account ending 4321.", category: "Finance", score: 0.95),
-            NotificationEvent(id: UUID(), date: Date().addingTimeInterval(-600), bundleID: "com.homesecurity.cam", title: "Motion detected: Front Door", category: "Security", score: 0.99)
+            NotificationEvent(id: UUID(), date: Date(), appName: "Mail", bundleID: "com.apple.mail", title: "Re: Project Phoenix Deadline", message: "The project deadline has been moved to tomorrow.", category: "Work", score: 0.92),
+            NotificationEvent(id: UUID(), date: Date().addingTimeInterval(-300), appName: "MyBank", bundleID: "com.mybank.app", title: "Large transaction detected on your account ending 4321.", message: "$2,500 transaction at Amazon.com", category: "Finance", score: 0.95),
+            NotificationEvent(id: UUID(), date: Date().addingTimeInterval(-600), appName: "HomeSecurity", bundleID: "com.homesecurity.cam", title: "Motion detected: Front Door", message: "Person detected at front door", category: "Security", score: 0.99)
         ]
         appState.batteryPercentage = 0.75
         

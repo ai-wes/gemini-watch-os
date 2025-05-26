@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import WatchKit
 
 // Represents the shared state and data for the NotiZen watchOS app.
 // This will be the single source of truth for dynamic data displayed in views.
@@ -36,6 +37,8 @@ class WatchAppState: ObservableObject {
     ]
     @Published var notificationSummary: String = "No new low-priority notifications."
     @Published var currentDigests: [NotificationDigest] = [] // For storing generated digests
+    @Published var digestSummary: String = "Nothing to summarize yet."
+    @Published var digestItems: [NotificationEvent] = []
 
     // MARK: - AI Engines & Services
     let notificationClassifier: NotificationClassifier
@@ -58,9 +61,6 @@ class WatchAppState: ObservableObject {
         self.batchingEngine = BatchingEngine()
         self.summarizer = Summarizer()
         self.batterySampler = BatterySampler()
-        self.drainPredictor = DrainPredictor()
-        self.optimizer = Optimizer() // Pass dependencies if needed, e.g., self
-        self.cloudSyncCoordinator = CloudSyncCoordinator()
 
         // TODO: Initialize and connect to actual data sources and services.
         // For now, load dummy data or initial states.
@@ -85,7 +85,7 @@ class WatchAppState: ObservableObject {
                     self.batteryHoursRemaining = Int(timeRemaining / 3600)
                 }
                 // Trigger optimizer to re-evaluate based on new battery data
-                self.optimizer.evaluateAndApplyOptimizations()
+                // self.optimizer.evaluateAndApplyOptimizations()
             }
             .store(in: &cancellables)
         
@@ -96,12 +96,12 @@ class WatchAppState: ObservableObject {
         //     .store(in: &cancellables)
 
         // Perform initial CloudKit setup/check
-        cloudSyncCoordinator.checkAccountStatus()
-        cloudSyncCoordinator.subscribeToPreferenceChanges { error in
-            if let error = error {
-                print("Failed to subscribe to preference changes: \\(error.localizedDescription)")
-            }
-        }
+        // cloudSyncCoordinator.checkAccountStatus()
+        // cloudSyncCoordinator.subscribeToPreferenceChanges { error in
+        //     if let error = error {
+        //         print("Failed to subscribe to preference changes: \\(error.localizedDescription)")
+        //     }
+        // }
     }
     
     deinit {
@@ -226,7 +226,7 @@ class WatchAppState: ObservableObject {
                 self.triggerDigestUpdateIfNeeded() // Check if digests should be created
 
             case .unknown: // Treat unknown as low for now, or define specific handling
-                print("Notification with unknown priority: \\(notification.title ?? "Untitled") - \\(notification.message)")
+                print("Notification with unknown priority: \(notification.title ?? "Untitled") - \(notification.message)")
                 self.lowPriorityNotifications.append(notification) // Default to low priority handling
                 self.batchingEngine.addNotificationToBatch(notification)
                 self.triggerDigestUpdateIfNeeded()
@@ -282,7 +282,7 @@ class WatchAppState: ObservableObject {
         
         // Add some high-priority notifications
         for hpNotif in highPriorityFeed.prefix(3) {
-            items.append(WatchNotificationItem(id: hpNotif.id, title: hpNotif.title ?? hpNotif.appName, messageSnippet: summarizer.summarize(notification: hpNotif), timestamp: hpNotif.timestamp, type: .highPriority))
+            items.append(WatchNotificationItem(id: hpNotif.id, title: hpNotif.title ?? hpNotif.appName, messageSnippet: summarizer.summarize(notification: hpNotif), timestamp: hpNotif.date, type: .highPriority))
         }
         
         // Add some digests or recent low-priority notifications
@@ -311,21 +311,20 @@ class WatchAppState: ObservableObject {
 
         // Simple trigger: if batching engine has items, try to finalize.
         // More complex logic can be added based on BatchingRule.maxTimeWindow etc.
-        if !batchingEngine.pendingLowPriorityNotifications.isEmpty {
-            let newDigests = batchingEngine.finalizeAndCreateDigests(categoryPreferences: self.userCategories)
-            if !newDigests.isEmpty {
-                DispatchQueue.main.async {
-                    self.currentDigests.append(contentsOf: newDigests)
-                    // Sort digests by creation date, newest first
-                    self.currentDigests.sort { $0.creationDate > $1.creationDate }
-                    // Limit the number of stored digests if necessary
-                    if self.currentDigests.count > 10 { // Keep max 10 digests
-                        self.currentDigests = Array(self.currentDigests.prefix(10))
-                    }
-                    self.notificationSummary = self.summarizer.generateOverallSummary(for: self.currentDigests)
-                    self.updateDashboardNotifications() // Update dashboard as digests are created
-                    print("WatchAppState: Created \\(newDigests.count) new digests. Total digests: \\(self.currentDigests.count)")
+        // Create digests from batching engine
+        let newDigests = batchingEngine.finalizeAndCreateDigests(categoryPreferences: self.userCategories)
+        if !newDigests.isEmpty {
+            DispatchQueue.main.async {
+                self.currentDigests.append(contentsOf: newDigests)
+                // Sort digests by creation date, newest first
+                self.currentDigests.sort { $0.creationDate > $1.creationDate }
+                // Limit the number of stored digests if necessary
+                if self.currentDigests.count > 10 { // Keep max 10 digests
+                    self.currentDigests = Array(self.currentDigests.prefix(10))
                 }
+                self.notificationSummary = self.summarizer.generateOverallSummary(for: self.currentDigests)
+                self.updateDashboardNotifications() // Update dashboard as digests are created
+                print("WatchAppState: Created \\(newDigests.count) new digests. Total digests: \\(self.currentDigests.count)")
             }
         }
     }
@@ -415,33 +414,6 @@ class WatchAppState: ObservableObject {
         scheduleDigestTimer() // Reschedule timer with new time
     }
 
-    // --- Digest Preview Scheduling ---
-    private func scheduleDigestTimer() {
-        digestUpdateTimer?.invalidate() // Invalidate existing timer
-
-        let now = Date()
-        var nextDigestTime = Calendar.current.nextDate(after: now, matching: Calendar.current.dateComponents([.hour, .minute], from: preferredDigestTime), matchingPolicy: .nextTime)!
-
-        // If the next digest time is in the past for today, schedule for tomorrow
-        if nextDigestTime < now {
-            nextDigestTime = Calendar.current.date(byAdding: .day, value: 1, to: nextDigestTime)!
-        }
-
-        let timeInterval = nextDigestTime.timeIntervalSinceNow
-        guard timeInterval > 0 else { 
-            print("Digest time is in the past, not scheduling.")
-            return
-        }
-
-        print("Scheduling digest preview for: \(nextDigestTime) (in \(timeInterval) seconds)")
-
-        digestUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval,
-                                                 repeats: false) { [weak self] _ in
-            print("Digest timer fired!")
-            self?.triggerDigestUpdateIfNeeded(forceShow: true)
-            self?.scheduleDigestTimer() // Reschedule for the next day
-        }
-    }
 
     @Published var shouldShowDigestPreviewSheet = false
 
@@ -467,7 +439,7 @@ class WatchAppState: ObservableObject {
         if forceShow {
             print("Force showing digest preview sheet.")
             shouldShowDigestPreviewSheet = true
-            WKInterfaceDevice.current().play(.warning) // PRD Haptics for digest created
+            WKInterfaceDevice.current().play(.failure) // PRD Haptics for digest created
         }
     }
 
@@ -483,9 +455,62 @@ class WatchAppState: ObservableObject {
     // Add more methods for other user actions and data manipulations as needed.
 }
 
-// Note: The WatchNotificationItem struct is currently in NotificationRowView.swift.
-// For a cleaner architecture, it\'s often better to have UI-specific models (like WatchNotificationItem)
-// distinct from your core data models (like NotificationEvent), with mapping functions between them.
-// However, if WatchNotificationItem is simple and only used for display directly from NotificationEvent fields,
-// you might choose to use NotificationEvent directly in views or create WatchNotificationItem on-the-fly.
-// For this AppState, we\'ll assume WatchNotificationItem is suitable for now.
+// Add this struct at the top of WatchAppState or create a separate file
+struct WatchNotificationItem: Identifiable {
+    let id: UUID
+    let title: String
+    let messageSnippet: String
+    let timestamp: Date
+    let type: NotificationType
+    
+    enum NotificationType {
+        case highPriority
+        case lowPriority
+        case digest
+    }
+    
+    init(id: UUID = UUID(), title: String, messageSnippet: String, timestamp: Date, type: NotificationType) {
+        self.id = id
+        self.title = title
+        self.messageSnippet = messageSnippet
+        self.timestamp = timestamp
+        self.type = type
+    }
+}
+
+// Add missing priority enum
+enum NotificationPriority {
+    case high
+    case medium
+    case low
+    case unknown
+}
+
+// Add missing methods to WatchAppState
+extension WatchAppState {
+    func loadDummyData(slightlyModify: Bool = false) {
+        // Placeholder for loading dummy data
+        self.unreadHighPriorityCount = slightlyModify ? 3 : 2
+        self.latestHighPriorityMessage = slightlyModify ? "New urgent message..." : "Wire transfer..."
+        self.batteryHoursRemaining = slightlyModify ? 16 : 18
+        
+        // Create some dummy dashboard notifications
+        self.dashboardNotifications = [
+            WatchNotificationItem(title: "Messages", messageSnippet: "1 new", timestamp: Date(), type: .highPriority),
+            WatchNotificationItem(title: "Finance", messageSnippet: "-", timestamp: Date().addingTimeInterval(-300), type: .lowPriority)
+        ]
+    }
+    
+    func archiveNotification(id: UUID) {
+        // Remove from high priority notifications
+        highPriorityNotifications.removeAll { $0.id == id }
+        highPriorityFeed.removeAll { $0.id == id }
+        
+        // Update counts
+        unreadHighPriorityCount = highPriorityNotifications.count
+        
+        // Update complication data
+        updateComplicationData()
+    }
+    
+}

@@ -89,29 +89,6 @@ struct DigestPreviewSheetView: View {
     }
 }
 
-// Placeholder for the full digest list view
-struct DigestListView: View {
-    @Environment(\.dismiss) var dismiss
-    let digestItems: [NotificationEvent]
-    
-    var body: some View {
-        List(digestItems) { item in
-            VStack(alignment: .leading) {
-                Text(item.title ?? "Notification")
-                    .font(.headline)
-                Text(item.bundleID)
-                    .font(.caption)
-                    .opacity(0.7)
-            }
-        }
-        .navigationTitle("Digested Items")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") { dismiss() }
-            }
-        }
-    }
-}
 
 #if DEBUG
 struct DigestPreviewSheetView_Previews: PreviewProvider {

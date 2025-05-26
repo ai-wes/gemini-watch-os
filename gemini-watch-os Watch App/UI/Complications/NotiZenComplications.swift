@@ -2,8 +2,7 @@ import WidgetKit
 import SwiftUI
 
 // PRD A1: Watch Face Complication
-// This struct defines the main entry point for the complications.
-@main
+// This struct defines the complications widget.
 struct NotiZenComplications: Widget {
     let kind: String = "NotiZenComplications"
 
