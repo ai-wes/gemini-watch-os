@@ -104,17 +104,24 @@ class CloudSyncCoordinator {
     /// Fetches all `UserPreference` records.
     func fetchAllUserPreferences(completion: @escaping (Result<[UserPreference], Error>) -> Void) {
         let query = CKQuery(recordType: CloudSyncCoordinator.recordTypeUserPreference, predicate: NSPredicate(value: true))
-        privateDB.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("Error fetching all UserPreferences: \(error.localizedDescription)")
-                completion(.failure(error))
-            } else {
-                let preferences = records?.compactMap { record -> UserPreference? in
-                    guard let value = record["value"] as? Data else { return nil }
-                    return UserPreference(key: record.recordID.recordName, value: value)
-                } ?? []
+        privateDB.fetch(with: query, inZoneWith: nil, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
+            switch result {
+            case .success(let (matchResults, _)): // CKQueryOperation.FetchResults includes matchResults and a cursor
+                let preferences = matchResults.compactMap { (recordID, recordResult) -> UserPreference? in
+                    switch recordResult {
+                    case .success(let record):
+                        guard let value = record["value"] as? Data else { return nil }
+                        return UserPreference(key: record.recordID.recordName, value: value)
+                    case .failure(let error):
+                        print("Error fetching individual record \(recordID): \(error.localizedDescription)")
+                        return nil
+                    }
+                }
                 print("Fetched \(preferences.count) UserPreferences from CloudKit.")
                 completion(.success(preferences))
+            case .failure(let error):
+                print("Error fetching all UserPreferences: \(error.localizedDescription)")
+                completion(.failure(error))
             }
         }
     }
