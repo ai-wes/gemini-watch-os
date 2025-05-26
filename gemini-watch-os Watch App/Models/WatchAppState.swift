@@ -80,7 +80,7 @@ class WatchAppState: ObservableObject {
                 self.batteryPercentage = latestSnapshot.level
                 // TODO: Get current charging state from WKInterfaceDevice.current().batteryState
                 let currentChargingState = WKInterfaceDevice.current().batteryState.rawValue // Or map to your enum/int
-                if let timeRemaining = self.drainPredictor.estimateTimeRemaining(currentLevel: latestSnapshot.level, currentChargingState: currentChargingState) {
+                if let timeRemaining = self.drainPredictor.estimateTimeRemaining(currentLevel: latestSnapshot.level, currentChargingState) {
                     self.estimatedTimeToEmpty = timeRemaining
                     self.batteryHoursRemaining = Int(timeRemaining / 3600)
                 }
@@ -230,6 +230,11 @@ class WatchAppState: ObservableObject {
                 self.lowPriorityNotifications.append(notification) // Default to low priority handling
                 self.batchingEngine.addNotificationToBatch(notification)
                 self.triggerDigestUpdateIfNeeded()
+            default: // Ensure switch is exhaustive
+                print("Notification with unhandled priority: \(notification.title ?? "Untitled")")
+                self.lowPriorityNotifications.append(notification) // Default to low priority handling for safety
+                self.batchingEngine.addNotificationToBatch(notification)
+                self.triggerDigestUpdateIfNeeded()
             }
             
             // Update dashboard notifications (simplified example)
@@ -294,7 +299,7 @@ class WatchAppState: ObservableObject {
         // If no digests, show some recent low-priority items directly
         if currentDigests.isEmpty {
             for lpNotif in lowPriorityNotifications.suffix(2).reversed() { // Most recent low-prio
-                 items.append(WatchNotificationItem(id: lpNotif.id, title: lpNotif.title ?? lpNotif.appName, messageSnippet: summarizer.summarize(notification: lpNotif), timestamp: lpNotif.timestamp, type: .lowPriority))
+                 items.append(WatchNotificationItem(id: lpNotif.id, title: lpNotif.title ?? lpNotif.appName, messageSnippet: summarizer.summarize(notification: lpNotif), timestamp: lpNotif.date, type: .lowPriority))
             }
         }
         

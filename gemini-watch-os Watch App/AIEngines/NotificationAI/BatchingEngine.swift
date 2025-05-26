@@ -53,7 +53,7 @@ class BatchingEngine {
     /// - Returns: An array of `NotificationDigest`.
     func finalizeAndCreateDigests(categoryPreferences: [CategoryPreference]) -> [NotificationDigest] {
         var digests: [NotificationDigest] = []
-        var remainingNotifications = pendingLowPriorityNotifications.filter { notification in
+        let remainingNotifications = pendingLowPriorityNotifications.filter { notification in
             guard let categoryName = notification.category else { return true } // Include if no category
             return categoryPreferences.first { $0.name == categoryName }?.isEnabled ?? true
         }

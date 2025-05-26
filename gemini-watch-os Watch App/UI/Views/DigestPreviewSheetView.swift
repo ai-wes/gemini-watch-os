@@ -77,7 +77,7 @@ struct DigestPreviewSheetView: View {
         .cornerRadius(DesignTokens.Layout.cornerRadiusMedium) // PRD: 16pt for modal sheets
         .onAppear {
             // PRD Haptics: .warning when digest created
-            WKInterfaceDevice.current().play(.warning)
+            WKInterfaceDevice.current().play(.failure)
         }
         .sheet(isPresented: $navigateToDigestList) { // Using .sheet for "View List" for now
             // Placeholder for DigestListView - PRD doesn't specify this view in detail yet
@@ -96,9 +96,9 @@ struct DigestPreviewSheetView_Previews: PreviewProvider {
         let appState = WatchAppState()
         appState.digestSummary = "Key updates from today:"
         appState.digestItems = [
-            NotificationEvent(id: UUID(), date: Date(), bundleID: "com.example.promo", title: "6 promos grouped", score: 0.2),
-            NotificationEvent(id: UUID(), date: Date(), bundleID: "com.example.calendar", title: "Calendar invites: 2", score: 0.3),
-            NotificationEvent(id: UUID(), date: Date(), bundleID: "com.example.updates", title: "App updates turned to digest", score: 0.1)
+            NotificationEvent(id: UUID(), date: Date(), appName: "PromoApp", bundleID: "com.example.promo", title: "6 promos grouped", message: "Summary of 6 promotional offers.", score: 0.2),
+            NotificationEvent(id: UUID(), date: Date(), appName: "CalendarApp", bundleID: "com.example.calendar", title: "Calendar invites: 2", message: "Two new calendar invitations.", score: 0.3),
+            NotificationEvent(id: UUID(), date: Date(), appName: "UpdatesApp", bundleID: "com.example.updates", title: "App updates turned to digest", message: "Various app updates have been summarized.", score: 0.1)
         ]
 
         return DigestPreviewSheetView()
