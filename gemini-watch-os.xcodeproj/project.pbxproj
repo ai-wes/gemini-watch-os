@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DEAC798D2DE4322800D05E9C /* WatchKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEAC798C2DE4322800D05E9C /* WatchKit.framework */; };
 		DEF2D7C22DE331DF0027B483 /* gemini-watch-os Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DEF2D7C12DE331DF0027B483 /* gemini-watch-os Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DEAC798C2DE4322800D05E9C /* WatchKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchKit.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.5.sdk/System/Library/Frameworks/WatchKit.framework; sourceTree = DEVELOPER_DIR; };
 		DEF2D7BB2DE331DF0027B483 /* gemini-watch-os.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gemini-watch-os.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEF2D7C12DE331DF0027B483 /* gemini-watch-os Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gemini-watch-os Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -52,16 +54,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEAC798D2DE4322800D05E9C /* WatchKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DEAC798B2DE4322800D05E9C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DEAC798C2DE4322800D05E9C /* WatchKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		DEF2D7B42DE331DF0027B483 = {
 			isa = PBXGroup;
 			children = (
 				DEF2D7C52DE331DF0027B483 /* gemini-watch-os Watch App */,
+				DEAC798B2DE4322800D05E9C /* Frameworks */,
 				DEF2D7BC2DE331DF0027B483 /* Products */,
 			);
 			sourceTree = "<group>";

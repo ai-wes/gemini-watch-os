@@ -1,21 +1,27 @@
-//
-//  ContentView.swift
-//  gemini-watch-os Watch App
-//
-//  Created by Wesley Lagarde on 5/25/25.
-//
-
 import SwiftUI
 
+// This ContentView can serve as a wrapper or initial navigation point if DashboardView becomes more complex
+// or if other initial views are needed before the dashboard.
 struct ContentView: View {
+    @EnvironmentObject var appState: WatchAppState
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            // Dashboard View
+            DashboardView()
+                .tabItem {
+                    Label("Dashboard", systemImage: "house")
+                }
+
+            // Settings View
+            SettingsMenuView()
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
+                }
         }
-        .padding()
+        .sheet(isPresented: $appState.shouldShowDigestPreviewSheet) {
+            DigestPreviewSheetView()
+        }
     }
 }
 
