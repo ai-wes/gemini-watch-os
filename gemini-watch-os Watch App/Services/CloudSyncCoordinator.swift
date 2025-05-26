@@ -20,12 +20,16 @@ class CloudSyncCoordinator {
 
     // MARK: - Initialization
     
-    init(containerIdentifier: String? = nil) {
+    init(containerIdentifier: String? = nil, forPreview: Bool = false) {
         // Skip CloudKit initialization during SwiftUI previews
         #if DEBUG
-        self.isPreviewMode = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        let envIsPreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        self.isPreviewMode = forPreview || envIsPreview
         #else
-        self.isPreviewMode = false
+        self.isPreviewMode = false // For release builds, never treat as preview.
+                                   // Consider if `forPreview` should have any effect here,
+                                   // but typically, release builds aren't for previews.
+                                   // For safety, keeping it false.
         #endif
         
         if isPreviewMode {

@@ -47,7 +47,10 @@ class WatchAppState: ObservableObject {
     let batterySampler: BatterySampler
     private let drainPredictor = DrainPredictor()
     private let optimizer = Optimizer()
-    private let cloudSyncCoordinator = CloudSyncCoordinator()
+    // private let cloudSyncCoordinator = CloudSyncCoordinator() // Remove or comment out the direct property initialization
+
+    // Declare cloudSyncCoordinator as a let property without an initial value
+    private let cloudSyncCoordinator: CloudSyncCoordinator
     
     private var cancellables = Set<AnyCancellable>()
     private var digestUpdateTimer: Timer? // Timer for scheduling digest preview
@@ -56,6 +59,14 @@ class WatchAppState: ObservableObject {
 
     // MARK: - Initialization
     init() {
+        var isForPreviewEnvironment = false
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            isForPreviewEnvironment = true
+        }
+        #endif
+        self.cloudSyncCoordinator = CloudSyncCoordinator(forPreview: isForPreviewEnvironment)
+
         // Initialize AI Engines and Services
         self.notificationClassifier = NotificationClassifier()
         self.batchingEngine = BatchingEngine()
