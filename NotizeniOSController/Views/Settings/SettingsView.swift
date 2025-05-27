@@ -21,7 +21,15 @@ struct SettingsView: View {
                 Section {
                     WatchLinkRowView()
                 } header: {
-                    Text("Watch Link")
+                    Text("Watch Connection")
+                }
+                .listRowBackground(Color.tileDark)
+                
+                // Watch Settings Section
+                Section {
+                    WatchSettingsView()
+                } header: {
+                    Text("Watch Settings")
                 }
                 .listRowBackground(Color.tileDark)
                 
@@ -77,24 +85,51 @@ struct SettingsView: View {
     }
     
     private func exportLogs() {
-        // In a real app, this would export actual logs
+        // Generate comprehensive log data
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        
         let logData = """
         NotiZen App Logs
         ================
         
-        Date: \(Date())
-        Version: 1.0.0 (1)
+        Export Date: \(formatter.string(from: Date()))
+        App Version: 1.0.0 (1)
         Device: \(UIDevice.current.model)
         iOS Version: \(UIDevice.current.systemVersion)
         
-        Battery Level: \(appState.batteryData.level)%
-        Notification Count: \(appState.notifications.count)
-        Categories: \(appState.categories.count)
+        === BATTERY DATA ===
+        Current Level: \(Int(appState.batteryData.level))%
+        Is Charging: \(appState.batteryData.isCharging)
+        Estimated Hours: \(appState.batteryData.estimatedHours)
+        Battery Mode: \(appState.batterySettings.mode.displayName)
+        Smart Low Power: \(appState.batterySettings.smartLowPowerEnabled)
+        Low Power Threshold: \(appState.batterySettings.lowPowerThreshold)%
         
-        Recent Activity:
+        === NOTIFICATIONS ===
+        Total Notifications: \(appState.notifications.count)
+        High Priority: \(appState.highPriorityCount)
+        Unread Count: \(appState.unreadCount)
+        
+        === CATEGORIES ===
+        Total Categories: \(appState.categories.count)
+        \(appState.categories.map { "\($0.name): Priority \(Int($0.priority))" }.joined(separator: "\n"))
+        
+        === WATCH CONNECTIVITY ===
+        Watch Connected: \(appState.watchData.isReachable)
+        Last Sync: \(formatter.string(from: appState.watchData.lastSync))
+        Watch Battery Mode: \(appState.watchData.batteryMode)
+        
+        === HISTORY DATA ===
+        Battery History Points: \(appState.batteryHistory.count)
+        Notification History Points: \(appState.notificationHistory.count)
+        
+        === RECENT ACTIVITY ===
         - Dashboard viewed
         - Settings accessed
         - Log export requested
+        - Watch sync status checked
         """
         
         let activityController = UIActivityViewController(
@@ -122,8 +157,13 @@ struct WatchLinkRowView: View {
                     .foregroundColor(.accentMed)
                     .frame(width: 24)
                 
-                Text("Apple Watch")
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Apple Watch")
+                        .foregroundColor(.white)
+                    Text("Last sync: \(lastSyncText)")
+                        .font(.caption)
+                        .foregroundColor(.accentLow)
+                }
                 
                 Spacer()
                 
@@ -133,18 +173,124 @@ struct WatchLinkRowView: View {
                 )
             }
             
-            // Test Ping Button
-            Button("Send Test Ping") {
-                appState.sendTestPingToWatch()
+            // Action Buttons
+            HStack(spacing: LayoutTokens.spacing3) {
+                Button("Test Connection") {
+                    appState.sendTestPingToWatch()
+                }
+                .font(.footnote)
+                .foregroundColor(.accentMed)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, LayoutTokens.spacing2)
+                .background(
+                    RoundedRectangle(cornerRadius: LayoutTokens.spacing2)
+                        .fill(Color.accentMed.opacity(0.1))
+                )
+                
+                Button("Force Sync") {
+                    appState.syncAllDataToWatch()
+                }
+                .font(.footnote)
+                .foregroundColor(.accentHigh)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, LayoutTokens.spacing2)
+                .background(
+                    RoundedRectangle(cornerRadius: LayoutTokens.spacing2)
+                        .fill(Color.accentHigh.opacity(0.1))
+                )
             }
-            .font(.body)
-            .foregroundColor(.accentMed)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, LayoutTokens.spacing2)
-            .background(
-                RoundedRectangle(cornerRadius: LayoutTokens.spacing2)
-                    .fill(Color.accentMed.opacity(0.1))
-            )
+        }
+    }
+    
+    private var lastSyncText: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: appState.watchData.lastSync)
+    }
+}
+
+struct WatchSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var autoSyncEnabled = true
+    @State private var syncBatteryData = true
+    @State private var syncNotifications = true
+    @State private var syncCategories = true
+    
+    var body: some View {
+        VStack(spacing: LayoutTokens.spacing4) {
+            // Auto Sync Toggle
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Auto Sync")
+                        .foregroundColor(.white)
+                    Text("Automatically sync settings to watch")
+                        .font(.caption)
+                        .foregroundColor(.accentLow)
+                }
+                
+                Spacer()
+                
+                Toggle("", isOn: $autoSyncEnabled)
+                    .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+            }
+            
+            Divider()
+                .background(Color.accentLow.opacity(0.3))
+            
+            // Sync Options
+            VStack(spacing: LayoutTokens.spacing3) {
+                Text("Sync Options")
+                    .font(.footnote)
+                    .foregroundColor(.accentLow)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                VStack(spacing: LayoutTokens.spacing2) {
+                    SyncOptionRow(
+                        title: "Battery Data",
+                        description: "Share battery level and drain data",
+                        isEnabled: $syncBatteryData
+                    )
+                    
+                    SyncOptionRow(
+                        title: "Notifications",
+                        description: "Sync notification history and counts",
+                        isEnabled: $syncNotifications
+                    )
+                    
+                    SyncOptionRow(
+                        title: "Categories",
+                        description: "Share category preferences and priorities",
+                        isEnabled: $syncCategories
+                    )
+                }
+            }
+        }
+    }
+}
+
+struct SyncOptionRow: View {
+    let title: String
+    let description: String
+    @Binding var isEnabled: Bool
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body)
+                    .foregroundColor(.white)
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.accentLow)
+            }
+            
+            Spacer()
+            
+            Toggle("", isOn: $isEnabled)
+                .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                .onChange(of: isEnabled) { _, _ in
+                    HapticManager.shared.soft()
+                }
         }
     }
 }

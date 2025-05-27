@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Notification Models
-struct NotificationItem: Identifiable, Hashable {
+struct NotificationItem: Identifiable, Hashable, Codable {
     let id = UUID()
     let title: String
     let appName: String
@@ -20,7 +20,7 @@ struct NotificationItem: Identifiable, Hashable {
     }
 }
 
-enum NotificationPriority: String, CaseIterable {
+enum NotificationPriority: String, CaseIterable, Codable {
     case high = "high"
     case normal = "normal"
     case low = "low"
@@ -43,7 +43,7 @@ enum NotificationPriority: String, CaseIterable {
 }
 
 // MARK: - Category Models
-struct NotificationCategory: Identifiable, Hashable {
+struct NotificationCategory: Identifiable, Hashable, Codable {
     let id = UUID()
     let name: String
     let iconName: String
@@ -62,7 +62,7 @@ struct NotificationCategory: Identifiable, Hashable {
     }
 }
 
-struct MuteWindow: Identifiable, Hashable {
+struct MuteWindow: Identifiable, Hashable, Codable {
     let id = UUID()
     let startTime: Date
     let endTime: Date
@@ -76,7 +76,7 @@ struct MuteWindow: Identifiable, Hashable {
 }
 
 // MARK: - Battery Models
-struct BatteryData: Hashable {
+struct BatteryData: Hashable, Codable {
     let level: Double // 0-100
     let isCharging: Bool
     let estimatedHours: Double
@@ -90,7 +90,7 @@ struct BatteryData: Hashable {
     }
 }
 
-enum BatteryMode: String, CaseIterable {
+enum BatteryMode: String, CaseIterable, Codable {
     case balanced = "balanced"
     case runtimePlus = "runtime+"
     case performance = "performance"
@@ -104,14 +104,14 @@ enum BatteryMode: String, CaseIterable {
     }
 }
 
-struct BatterySettings {
+struct BatterySettings: Codable {
     var mode: BatteryMode = .balanced
     var smartLowPowerEnabled: Bool = true
     var lowPowerThreshold: Int = 20 // 5-50%
 }
 
 // MARK: - App Drain Data
-struct AppDrainData: Identifiable, Hashable {
+struct AppDrainData: Identifiable, Hashable, Codable {
     let id = UUID()
     let appName: String
     let iconName: String
@@ -127,7 +127,7 @@ struct AppDrainData: Identifiable, Hashable {
 }
 
 // MARK: - History Data
-struct HistoryDataPoint: Identifiable, Hashable {
+struct HistoryDataPoint: Identifiable, Hashable, Codable {
     let id = UUID()
     let timestamp: Date
     let value: Double
@@ -141,7 +141,7 @@ struct HistoryDataPoint: Identifiable, Hashable {
 }
 
 // MARK: - Subscription Models
-enum SubscriptionTier: String, CaseIterable {
+enum SubscriptionTier: String, CaseIterable, Codable {
     case free = "free"
     case plus = "plus"
     case pro = "pro"
@@ -163,7 +163,7 @@ enum SubscriptionTier: String, CaseIterable {
     }
 }
 
-struct SubscriptionInfo {
+struct SubscriptionInfo: Codable {
     let tier: SubscriptionTier
     let expirationDate: Date?
     let features: [String]

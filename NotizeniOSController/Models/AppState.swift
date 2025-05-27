@@ -47,84 +47,62 @@ class AppState: ObservableObject {
     }
     
     init() {
-        loadSampleData()
+        loadInitialData()
         setupWatchConnectivity()
+        setupNotificationService()
     }
     
-    // MARK: - Sample Data
-    private func loadSampleData() {
-        // Sample notifications
-        notifications = [
-            NotificationItem(
-                title: "Wire transfer of $2,500 completed",
-                appName: "Banking",
-                appIcon: "banknote",
-                timestamp: Calendar.current.date(byAdding: .minute, value: -5, to: Date()) ?? Date(),
-                priority: .high
-            ),
-            NotificationItem(
-                title: "Your package has been delivered",
-                appName: "Delivery",
-                appIcon: "shippingbox",
-                timestamp: Calendar.current.date(byAdding: .minute, value: -15, to: Date()) ?? Date(),
-                priority: .high
-            ),
-            NotificationItem(
-                title: "New message from John",
-                appName: "Messages",
-                appIcon: "message",
-                timestamp: Calendar.current.date(byAdding: .hour, value: -1, to: Date()) ?? Date(),
-                priority: .normal
-            ),
-            NotificationItem(
-                title: "50% off sale ends today",
-                appName: "Shopping",
-                appIcon: "cart",
-                timestamp: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date(),
-                priority: .low
-            ),
-            NotificationItem(
-                title: "Weekly digest ready",
-                appName: "News",
-                appIcon: "newspaper",
-                timestamp: Calendar.current.date(byAdding: .hour, value: -3, to: Date()) ?? Date(),
-                priority: .low
-            )
-        ]
+    private func setupNotificationService() {
+        NotificationService.shared.setup(with: self)
+        BatteryMonitoringService.shared.setup(with: self)
+    }
+    
+    // MARK: - Initial Data
+    private func loadInitialData() {
+        // Start with clean state - notifications will come from real sources
+        notifications = []
         
-        // Sample categories
+        // Default categories for notification classification
         categories = [
-            NotificationCategory(name: "Finance", iconName: "banknote", bundleId: "com.bank.app", priority: 90),
+            NotificationCategory(name: "Finance", iconName: "banknote", bundleId: "com.bank.*", priority: 90),
             NotificationCategory(name: "Messages", iconName: "message", bundleId: "com.apple.MobileSMS", priority: 75),
-            NotificationCategory(name: "Social", iconName: "person.2", bundleId: "com.facebook.Facebook", priority: 40),
-            NotificationCategory(name: "Shopping", iconName: "cart", bundleId: "com.amazon.Amazon", priority: 25),
+            NotificationCategory(name: "Social", iconName: "person.2", bundleId: "com.facebook.*", priority: 40),
+            NotificationCategory(name: "Shopping", iconName: "cart", bundleId: "com.amazon.*", priority: 25),
             NotificationCategory(name: "News", iconName: "newspaper", bundleId: "com.apple.news", priority: 20),
-            NotificationCategory(name: "Games", iconName: "gamecontroller", bundleId: "com.game.app", priority: 15)
+            NotificationCategory(name: "Games", iconName: "gamecontroller", bundleId: "com.game.*", priority: 15),
+            NotificationCategory(name: "Work", iconName: "briefcase", bundleId: "com.microsoft.*", priority: 80),
+            NotificationCategory(name: "Health", iconName: "heart", bundleId: "com.apple.Health", priority: 85)
         ]
         
-        // Sample battery history (last 24 hours)
-        let now = Date()
-        batteryHistory = (0..<24).map { hour in
-            let timestamp = Calendar.current.date(byAdding: .hour, value: -hour, to: now) ?? now
-            let level = max(20, 100 - Double(hour) * 2.5 + Double.random(in: -5...5))
-            return HistoryDataPoint(timestamp: timestamp, value: level)
-        }.reversed()
+        // Initialize empty history - will be populated with real data
+        batteryHistory = []
+        notificationHistory = []
+        topDrainApps = []
         
-        // Sample notification history
-        notificationHistory = (0..<7).map { day in
-            let timestamp = Calendar.current.date(byAdding: .day, value: -day, to: now) ?? now
-            let count = Double.random(in: 15...45)
-            return HistoryDataPoint(timestamp: timestamp, value: count)
-        }.reversed()
+        // Load persisted data if available
+        loadPersistedData()
+    }
+    
+    private func loadPersistedData() {
+        // Load battery history from UserDefaults or Core Data
+        if let savedBatteryData = UserDefaults.standard.data(forKey: "batteryHistory") {
+            do {
+                let decoder = JSONDecoder()
+                batteryHistory = try decoder.decode([HistoryDataPoint].self, from: savedBatteryData)
+            } catch {
+                print("Failed to load battery history: \(error)")
+            }
+        }
         
-        // Sample top drain apps
-        topDrainApps = [
-            AppDrainData(appName: "Social Media", iconName: "person.2", drainPercentage: 23.5),
-            AppDrainData(appName: "Games", iconName: "gamecontroller", drainPercentage: 18.2),
-            AppDrainData(appName: "Video", iconName: "play.rectangle", drainPercentage: 15.7),
-            AppDrainData(appName: "Maps", iconName: "map", drainPercentage: 12.1),
-            AppDrainData(appName: "Camera", iconName: "camera", drainPercentage: 8.3)
-        ]
+        // Load notification history
+        if let savedNotificationData = UserDefaults.standard.data(forKey: "notificationHistory") {
+            do {
+                let decoder = JSONDecoder()
+                notificationHistory = try decoder.decode([HistoryDataPoint].self, from: savedNotificationData)
+            } catch {
+                print("Failed to load notification history: \(error)")
+            }
+        }
     }
     
     // MARK: - Actions
@@ -149,6 +127,8 @@ class AppState: ObservableObject {
     func updateCategoryPriority(_ category: NotificationCategory, priority: Double) {
         if let index = categories.firstIndex(where: { $0.id == category.id }) {
             categories[index].priority = priority
+            // Sync updated category to watch
+            syncCategoriesToWatch()
         }
         HapticManager.shared.rigid()
     }
@@ -156,31 +136,111 @@ class AppState: ObservableObject {
     func updateBatteryMode(_ mode: BatteryMode) {
         batterySettings.mode = mode
         sendBatteryModeToWatch(mode)
+        syncBatterySettingsToWatch()
+        saveBatterySettings()
         HapticManager.shared.soft()
+    }
+    
+    private func saveBatterySettings() {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(batterySettings)
+            UserDefaults.standard.set(data, forKey: "batterySettings")
+        } catch {
+            print("Failed to save battery settings: \(error)")
+        }
     }
     
     func addCategory(_ category: NotificationCategory) {
         categories.append(category)
+        // Sync new category to watch
+        syncCategoriesToWatch()
         HapticManager.shared.success()
     }
     
     func deleteCategory(_ category: NotificationCategory) {
         categories.removeAll { $0.id == category.id }
+        // Sync category deletion to watch
+        syncCategoriesToWatch()
     }
     
     func exportHistoryData() -> String {
         // Generate CSV data
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        
         var csvContent = "Date,Type,Value,Category\n"
         
         for point in notificationHistory {
-            csvContent += "\(point.timestamp),Notification,\(point.value),\(point.category ?? "")\n"
+            csvContent += "\(formatter.string(from: point.timestamp)),Notification,\(point.value),\(point.category ?? "")\n"
         }
         
         for point in batteryHistory {
-            csvContent += "\(point.timestamp),Battery,\(point.value),\n"
+            csvContent += "\(formatter.string(from: point.timestamp)),Battery,\(point.value),\n"
         }
         
         return csvContent
+    }
+    
+    // MARK: - Real Notification Handling
+    func addNotification(_ notification: NotificationItem) {
+        notifications.insert(notification, at: 0) // Add to beginning
+        
+        // Update history
+        updateNotificationHistory()
+        
+        // Sync to watch if needed
+        syncNotificationToWatch(notification)
+        
+        // Persist data
+        saveNotificationHistory()
+    }
+    
+    private func updateNotificationHistory() {
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        // Update today's count
+        if let todayIndex = notificationHistory.firstIndex(where: { Calendar.current.isDate($0.timestamp, inSameDayAs: today) }) {
+            notificationHistory[todayIndex] = HistoryDataPoint(
+                timestamp: today,
+                value: notificationHistory[todayIndex].value + 1
+            )
+        } else {
+            notificationHistory.append(HistoryDataPoint(timestamp: today, value: 1))
+        }
+        
+        // Keep only last 30 days
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        notificationHistory = notificationHistory.filter { $0.timestamp >= thirtyDaysAgo }
+    }
+    
+    private func syncNotificationToWatch(_ notification: NotificationItem) {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.isReachable else { return }
+        
+        do {
+            let encoder = JSONEncoder()
+            let notificationData = try encoder.encode([notification])
+            
+            let message = ["notifications": notificationData]
+            WCSession.default.sendMessage(message, replyHandler: nil) { error in
+                print("Failed to send notification to watch: \(error.localizedDescription)")
+            }
+        } catch {
+            print("Failed to encode notification: \(error.localizedDescription)")
+        }
+        #endif
+    }
+    
+    private func saveNotificationHistory() {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(notificationHistory)
+            UserDefaults.standard.set(data, forKey: "notificationHistory")
+        } catch {
+            print("Failed to save notification history: \(error)")
+        }
     }
     
     // MARK: - Watch Connectivity
@@ -190,7 +250,13 @@ class AppState: ObservableObject {
         
         let session = WCSession.default
         session.delegate = WatchConnectivityDelegate.shared
+        WatchConnectivityDelegate.shared.appState = self
         session.activate()
+        
+        // Send initial data to watch after activation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.syncAllDataToWatch()
+        }
         #endif
     }
     
@@ -201,6 +267,94 @@ class AppState: ObservableObject {
         let message = ["batteryMode": mode.rawValue]
         WCSession.default.sendMessage(message, replyHandler: nil) { error in
             print("Failed to send battery mode to watch: \(error.localizedDescription)")
+        }
+        #endif
+    }
+    
+    // MARK: - Enhanced Watch Sync Methods
+    func syncAllDataToWatch() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.activationState == .activated else { return }
+        
+        // Sync categories
+        syncCategoriesToWatch()
+        
+        // Sync battery settings
+        syncBatterySettingsToWatch()
+        
+        // Sync user preferences
+        syncUserPreferencesToWatch()
+        
+        print("iOS: Synced all data to watch")
+        #endif
+    }
+    
+    private func syncCategoriesToWatch() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.activationState == .activated else { return }
+        
+        do {
+            let encoder = JSONEncoder()
+            let categoriesData = try encoder.encode(categories)
+            
+            if WCSession.default.isReachable {
+                let message = ["syncCategories": categoriesData]
+                WCSession.default.sendMessage(message, replyHandler: nil) { error in
+                    print("Failed to send categories to watch: \(error.localizedDescription)")
+                }
+            } else {
+                // Use application context for background updates
+                try WCSession.default.updateApplicationContext(["categories": categoriesData])
+            }
+        } catch {
+            print("Failed to encode categories: \(error.localizedDescription)")
+        }
+        #endif
+    }
+    
+    private func syncBatterySettingsToWatch() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.activationState == .activated else { return }
+        
+        do {
+            let encoder = JSONEncoder()
+            let settingsData = try encoder.encode(batterySettings)
+            
+            if WCSession.default.isReachable {
+                let message = ["syncBatterySettings": settingsData]
+                WCSession.default.sendMessage(message, replyHandler: nil) { error in
+                    print("Failed to send battery settings to watch: \(error.localizedDescription)")
+                }
+            } else {
+                try WCSession.default.updateApplicationContext(["batterySettings": settingsData])
+            }
+        } catch {
+            print("Failed to encode battery settings: \(error.localizedDescription)")
+        }
+        #endif
+    }
+    
+    private func syncUserPreferencesToWatch() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.activationState == .activated else { return }
+        
+        let preferences = [
+            "digestStartTime": ISO8601DateFormatter().string(from: Date()),
+            "digestEndTime": ISO8601DateFormatter().string(from: Date()),
+            "batteryMode": batterySettings.mode.rawValue
+        ]
+        
+        if WCSession.default.isReachable {
+            let message = ["syncUserPreferences": preferences]
+            WCSession.default.sendMessage(message, replyHandler: nil) { error in
+                print("Failed to send user preferences to watch: \(error.localizedDescription)")
+            }
+        } else {
+            do {
+                try WCSession.default.updateApplicationContext(["userPreferences": preferences])
+            } catch {
+                print("Failed to update application context: \(error.localizedDescription)")
+            }
         }
         #endif
     }
@@ -227,24 +381,172 @@ class AppState: ObservableObject {
 #if canImport(WatchConnectivity)
 class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
     static let shared = WatchConnectivityDelegate()
+    weak var appState: AppState?
     
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        print("Watch session activation: \(activationState)")
+        print("iOS: Watch session activation: \(activationState)")
+        
+        DispatchQueue.main.async {
+            if activationState == .activated {
+                self.appState?.watchData = WatchData(
+                    batteryMode: self.appState?.batterySettings.mode ?? .balanced,
+                    isReachable: true,
+                    lastSync: Date()
+                )
+                // Send initial sync after activation
+                self.appState?.syncAllDataToWatch()
+            }
+        }
     }
     
     func sessionDidBecomeInactive(_ session: WCSession) {
-        print("Watch session became inactive")
+        print("iOS: Watch session became inactive")
+        DispatchQueue.main.async {
+            self.appState?.watchData = WatchData(
+                batteryMode: self.appState?.batterySettings.mode ?? .balanced,
+                isReachable: false,
+                lastSync: Date()
+            )
+        }
     }
     
     func sessionDidDeactivate(_ session: WCSession) {
-        print("Watch session deactivated")
+        print("iOS: Watch session deactivated")
         session.activate()
     }
     
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        print("iOS: Watch reachability changed: \(session.isReachable)")
+        DispatchQueue.main.async {
+            self.appState?.watchData = WatchData(
+                batteryMode: self.appState?.batterySettings.mode ?? .balanced,
+                isReachable: session.isReachable,
+                lastSync: Date()
+            )
+        }
+    }
+    
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        print("iOS: Received message from watch: \(message.keys)")
+        
         if message["ping"] != nil {
             replyHandler(["pong": "success"])
+            return
         }
+        
+        // Handle watch requesting data sync
+        if message["requestSync"] != nil {
+            DispatchQueue.main.async {
+                self.appState?.syncAllDataToWatch()
+            }
+            replyHandler(["syncInitiated": true])
+            return
+        }
+        
+        // Handle battery data from watch
+        if let batteryDataDict = message["batteryData"] as? [String: Any],
+           let level = batteryDataDict["level"] as? Double,
+           let isCharging = batteryDataDict["isCharging"] as? Bool,
+           let estimatedHours = batteryDataDict["estimatedHours"] as? Double {
+            
+            DispatchQueue.main.async {
+                self.appState?.batteryData = BatteryData(
+                    level: level,
+                    isCharging: isCharging,
+                    estimatedHours: estimatedHours,
+                    timestamp: Date()
+                )
+            }
+            replyHandler(["batteryDataReceived": true])
+            return
+        }
+        
+        // Handle notifications from watch
+        if let notificationsData = message["notifications"] as? Data {
+            do {
+                let decoder = JSONDecoder()
+                let watchNotifications = try decoder.decode([NotificationItem].self, from: notificationsData)
+                
+                DispatchQueue.main.async {
+                    // Merge or update notifications from watch
+                    self.updateNotificationsFromWatch(watchNotifications)
+                }
+                replyHandler(["notificationsReceived": true])
+            } catch {
+                print("Failed to decode notifications from watch: \(error)")
+                replyHandler(["error": "Failed to decode notifications"])
+            }
+            return
+        }
+        
+        // Handle watch requesting battery data update
+        if message["requestBatterySync"] != nil {
+            DispatchQueue.main.async {
+                // Send current battery data back to watch
+                self.syncBatteryDataToWatch()
+            }
+            replyHandler(["batterySyncSent": true])
+            return
+        }
+        
+        replyHandler(["status": "unknown message type"])
+    }
+    
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        print("iOS: Received application context from watch: \(applicationContext.keys)")
+        
+        DispatchQueue.main.async {
+            // Handle background sync from watch
+            if let batteryDataDict = applicationContext["batteryData"] as? [String: Any],
+               let level = batteryDataDict["level"] as? Double,
+               let isCharging = batteryDataDict["isCharging"] as? Bool,
+               let estimatedHours = batteryDataDict["estimatedHours"] as? Double {
+                
+                self.appState?.batteryData = BatteryData(
+                    level: level,
+                    isCharging: isCharging,
+                    estimatedHours: estimatedHours,
+                    timestamp: Date()
+                )
+            }
+        }
+    }
+    
+    private func updateNotificationsFromWatch(_ watchNotifications: [NotificationItem]) {
+        guard let appState = appState else { return }
+        
+        // Update existing notifications or add new ones
+        for watchNotification in watchNotifications {
+            if let index = appState.notifications.firstIndex(where: { $0.id == watchNotification.id }) {
+                // Update existing notification
+                appState.notifications[index] = watchNotification
+            } else {
+                // Add new notification
+                appState.notifications.append(watchNotification)
+            }
+        }
+        
+        // Sort by timestamp, newest first
+        appState.notifications.sort { $0.timestamp > $1.timestamp }
+        
+        print("iOS: Updated \(watchNotifications.count) notifications from watch")
+    }
+    
+    private func syncBatteryDataToWatch() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.default.isReachable else { return }
+        
+        let batteryData = [
+            "level": self.appState?.batteryData.level ?? 100.0,
+            "isCharging": self.appState?.batteryData.isCharging ?? false,
+            "estimatedHours": self.appState?.batteryData.estimatedHours ?? 8.0
+        ] as [String : Any]
+        
+        let message = ["batteryDataFromiOS": batteryData]
+        WCSession.default.sendMessage(message, replyHandler: nil) { error in
+            print("Failed to send battery data to watch: \(error.localizedDescription)")
+        }
+        #endif
     }
 }
 #endif
