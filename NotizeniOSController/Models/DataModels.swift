@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Notification Models
 struct NotificationItem: Identifiable, Hashable, Codable {
-    let id = UUID()
+    let id: UUID
     let title: String
     let appName: String
     let appIcon: String
@@ -11,6 +11,7 @@ struct NotificationItem: Identifiable, Hashable, Codable {
     let isRead: Bool
     
     init(title: String, appName: String, appIcon: String, timestamp: Date = Date(), priority: NotificationPriority = .normal, isRead: Bool = false) {
+        self.id = UUID()
         self.title = title
         self.appName = appName
         self.appIcon = appIcon
@@ -44,7 +45,7 @@ enum NotificationPriority: String, CaseIterable, Codable {
 
 // MARK: - Category Models
 struct NotificationCategory: Identifiable, Hashable, Codable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let iconName: String
     let bundleId: String
@@ -53,6 +54,7 @@ struct NotificationCategory: Identifiable, Hashable, Codable {
     var muteWindows: [MuteWindow]
     
     init(name: String, iconName: String, bundleId: String, priority: Double = 50, isDigestEnabled: Bool = true, muteWindows: [MuteWindow] = []) {
+        self.id = UUID()
         self.name = name
         self.iconName = iconName
         self.bundleId = bundleId
@@ -63,12 +65,13 @@ struct NotificationCategory: Identifiable, Hashable, Codable {
 }
 
 struct MuteWindow: Identifiable, Hashable, Codable {
-    let id = UUID()
+    let id: UUID
     let startTime: Date
     let endTime: Date
     let isEnabled: Bool
     
     init(startTime: Date, endTime: Date, isEnabled: Bool = true) {
+        self.id = UUID()
         self.startTime = startTime
         self.endTime = endTime
         self.isEnabled = isEnabled
@@ -112,13 +115,14 @@ struct BatterySettings: Codable {
 
 // MARK: - App Drain Data
 struct AppDrainData: Identifiable, Hashable, Codable {
-    let id = UUID()
+    let id: UUID
     let appName: String
     let iconName: String
     let drainPercentage: Double
     let sparklineData: [Double] // Last 3 hours
     
     init(appName: String, iconName: String, drainPercentage: Double, sparklineData: [Double] = []) {
+        self.id = UUID()
         self.appName = appName
         self.iconName = iconName
         self.drainPercentage = drainPercentage
@@ -128,12 +132,13 @@ struct AppDrainData: Identifiable, Hashable, Codable {
 
 // MARK: - History Data
 struct HistoryDataPoint: Identifiable, Hashable, Codable {
-    let id = UUID()
+    let id: UUID
     let timestamp: Date
     let value: Double
     let category: String?
     
     init(timestamp: Date, value: Double, category: String? = nil) {
+        self.id = UUID()
         self.timestamp = timestamp
         self.value = value
         self.category = category

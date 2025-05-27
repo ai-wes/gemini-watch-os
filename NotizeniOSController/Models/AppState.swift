@@ -14,7 +14,7 @@ class AppState: ObservableObject {
     @Published var batteryHistory: [HistoryDataPoint] = []
     @Published var notificationHistory: [HistoryDataPoint] = []
     @Published var subscription: SubscriptionInfo = SubscriptionInfo()
-    @Published var watchData: WatchData = WatchData()
+    @Published var watchData: WatchData = WatchData(isReachable: false)
     @Published var topDrainApps: [AppDrainData] = []
     
     // MARK: - Computed Properties
@@ -246,17 +246,37 @@ class AppState: ObservableObject {
     // MARK: - Watch Connectivity
     private func setupWatchConnectivity() {
         #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        
-        let session = WCSession.default
-        session.delegate = WatchConnectivityDelegate.shared
-        WatchConnectivityDelegate.shared.appState = self
-        session.activate()
-        
-        // Send initial data to watch after activation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.syncAllDataToWatch()
+        guard WCSession.isSupported() else { 
+            print("iOS: WatchConnectivity not supported on this device")
+            return 
         }
+        
+        // Use the singleton connectivity manager
+        WatchConnectivityManager.shared.appState = self
+        WatchConnectivityManager.shared.activateSession()
+        
+        print("iOS: WatchConnectivity setup initiated")
+        #endif
+    }
+    
+    func checkWatchConnectionStatus() {
+        #if canImport(WatchConnectivity)
+        let session = WCSession.default
+        let isConnected = session.activationState == .activated && session.isPaired && session.isWatchAppInstalled && session.isReachable
+        
+        print("iOS: Watch connection check - activated: \(session.activationState == .activated), paired: \(session.isPaired), installed: \(session.isWatchAppInstalled), reachable: \(session.isReachable)")
+        
+        self.watchData = WatchData(
+            batteryMode: batterySettings.mode,
+            isReachable: isConnected,
+            lastSync: watchData.lastSync
+        )
+        #endif
+    }
+    
+    func forceCheckConnection() {
+        #if canImport(WatchConnectivity)
+        WatchConnectivityManager.shared.checkConnectionStatus()
         #endif
     }
     
@@ -361,15 +381,37 @@ class AppState: ObservableObject {
     
     func sendTestPingToWatch() {
         #if canImport(WatchConnectivity)
-        guard WCSession.default.isReachable else { return }
+        // First check and update connection status
+        WatchConnectivityManager.shared.checkConnectionStatus()
+        
+        let session = WCSession.default
+        guard session.activationState == .activated else {
+            print("iOS: Session not activated")
+            HapticManager.shared.warning()
+            return
+        }
+        
+        guard session.isWatchAppInstalled else {
+            print("iOS: Watch app not installed")
+            HapticManager.shared.warning()
+            return
+        }
+        
+        guard session.isReachable else {
+            print("iOS: Watch not reachable")
+            HapticManager.shared.warning()
+            return
+        }
         
         let message = ["ping": "test"]
-        WCSession.default.sendMessage(message, replyHandler: { response in
+        session.sendMessage(message, replyHandler: { response in
             DispatchQueue.main.async {
+                print("iOS: Ping successful: \(response)")
                 HapticManager.shared.success()
             }
         }) { error in
             DispatchQueue.main.async {
+                print("iOS: Ping failed: \(error.localizedDescription)")
                 HapticManager.shared.warning()
             }
         }
@@ -377,24 +419,67 @@ class AppState: ObservableObject {
     }
 }
 
-// MARK: - Watch Connectivity Delegate
+// MARK: - Watch Connectivity Manager
 #if canImport(WatchConnectivity)
-class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
-    static let shared = WatchConnectivityDelegate()
+final class WatchConnectivityManager: NSObject, WCSessionDelegate {
+    static let shared = WatchConnectivityManager()
     weak var appState: AppState?
     
+    private override init() {
+        super.init()
+    }
+    
+    func activateSession() {
+        guard WCSession.isSupported() else {
+            print("iOS: WatchConnectivity not supported")
+            return
+        }
+        
+        let session = WCSession.default
+        session.delegate = self
+        session.activate()
+        
+        print("iOS: WatchConnectivity session activation initiated")
+    }
+    
+    func checkConnectionStatus() {
+        let session = WCSession.default
+        let isConnected = session.activationState == .activated && session.isPaired && session.isWatchAppInstalled && session.isReachable
+        
+        print("iOS: Connection status check - activated: \(session.activationState == .activated), paired: \(session.isPaired), installed: \(session.isWatchAppInstalled), reachable: \(session.isReachable)")
+        
+        DispatchQueue.main.async {
+            self.appState?.watchData = WatchData(
+                batteryMode: self.appState?.batterySettings.mode ?? .balanced,
+                isReachable: isConnected,
+                lastSync: Date()
+            )
+        }
+    }
+    
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        print("iOS: Watch session activation: \(activationState)")
+        print("iOS: Watch session activation: \(activationState), error: \(String(describing: error))")
         
         DispatchQueue.main.async {
             if activationState == .activated {
+                // Only set reachable to true if session is actually reachable
                 self.appState?.watchData = WatchData(
                     batteryMode: self.appState?.batterySettings.mode ?? .balanced,
-                    isReachable: true,
+                    isReachable: session.isReachable && session.isPaired,
                     lastSync: Date()
                 )
-                // Send initial sync after activation
-                self.appState?.syncAllDataToWatch()
+                
+                // Only sync if watch is actually reachable
+                if session.isReachable && session.isPaired {
+                    self.appState?.syncAllDataToWatch()
+                }
+            } else {
+                // Session failed to activate properly
+                self.appState?.watchData = WatchData(
+                    batteryMode: self.appState?.batterySettings.mode ?? .balanced,
+                    isReachable: false,
+                    lastSync: Date()
+                )
             }
         }
     }
@@ -416,13 +501,18 @@ class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
     }
     
     func sessionReachabilityDidChange(_ session: WCSession) {
-        print("iOS: Watch reachability changed: \(session.isReachable)")
+        print("iOS: Watch reachability changed: \(session.isReachable), paired: \(session.isPaired), installed: \(session.isWatchAppInstalled)")
         DispatchQueue.main.async {
             self.appState?.watchData = WatchData(
                 batteryMode: self.appState?.batterySettings.mode ?? .balanced,
-                isReachable: session.isReachable,
+                isReachable: session.isReachable && session.isPaired && session.isWatchAppInstalled,
                 lastSync: Date()
             )
+            
+            // Auto-sync when watch becomes reachable
+            if session.isReachable && session.isPaired && session.isWatchAppInstalled {
+                self.appState?.syncAllDataToWatch()
+            }
         }
     }
     
@@ -467,7 +557,7 @@ class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
                 let decoder = JSONDecoder()
                 let watchNotifications = try decoder.decode([NotificationItem].self, from: notificationsData)
                 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     // Merge or update notifications from watch
                     self.updateNotificationsFromWatch(watchNotifications)
                 }
@@ -481,7 +571,7 @@ class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
         
         // Handle watch requesting battery data update
         if message["requestBatterySync"] != nil {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 // Send current battery data back to watch
                 self.syncBatteryDataToWatch()
             }
@@ -512,6 +602,7 @@ class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
         }
     }
     
+    @MainActor
     private func updateNotificationsFromWatch(_ watchNotifications: [NotificationItem]) {
         guard let appState = appState else { return }
         
@@ -532,6 +623,7 @@ class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
         print("iOS: Updated \(watchNotifications.count) notifications from watch")
     }
     
+    @MainActor
     private func syncBatteryDataToWatch() {
         #if canImport(WatchConnectivity)
         guard WCSession.default.isReachable else { return }

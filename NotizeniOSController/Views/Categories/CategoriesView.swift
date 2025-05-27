@@ -17,6 +17,11 @@ struct CategoriesView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Notification Overview Section
+                NotificationOverviewSection()
+                    .padding(.horizontal, LayoutTokens.safePadding)
+                    .padding(.bottom, LayoutTokens.spacing4)
+                
                 // Search Bar
                 SearchBar(text: $searchText)
                     .padding(.horizontal, LayoutTokens.safePadding)
@@ -39,7 +44,7 @@ struct CategoriesView: View {
                 }
             }
             .background(Color.surfaceDark)
-            .navigationTitle("Categories")
+            .navigationTitle("Notification Management")
             .navigationBarTitleDisplayMode(.large)
             .overlay(
                 // Floating Action Button
@@ -86,7 +91,7 @@ struct SearchBar: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.accentLow)
             
-            TextField("Search categories", text: $text)
+            TextField("Search notification categories", text: $text)
                 .textFieldStyle(PlainTextFieldStyle())
                 .foregroundColor(.white)
         }
@@ -227,8 +232,16 @@ struct CategoryDetailView: View {
                 }
                 .listRowBackground(Color.tileDark)
                 
-                Section("Digest") {
+                Section("Notification Behavior") {
                     Toggle("Include in digest", isOn: $isDigestEnabled)
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                    
+                    Toggle("Sync to Apple Watch", isOn: .constant(true))
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                    
+                    Toggle("Smart Priority Adjustment", isOn: .constant(true))
                         .foregroundColor(.white)
                         .toggleStyle(SwitchToggleStyle(tint: .accentMed))
                     
@@ -431,7 +444,7 @@ struct AddCategoryView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.surfaceDark)
-            .navigationTitle("Add Category")
+            .navigationTitle("Add Notification Category")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -456,6 +469,185 @@ struct AddCategoryView: View {
                 }
             }
         }
+    }
+}
+
+struct NotificationOverviewSection: View {
+    @EnvironmentObject var appState: AppState
+    @State private var showingGlobalSettings = false
+    
+    var body: some View {
+        VStack(spacing: LayoutTokens.spacing3) {
+            HStack {
+                Text("Notification Overview")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: {
+                    showingGlobalSettings = true
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.title3)
+                        .foregroundColor(.accentMed)
+                }
+            }
+            
+            HStack(spacing: LayoutTokens.spacing3) {
+                NotificationStatCard(
+                    title: "Total",
+                    value: "\(appState.notifications.count)",
+                    iconName: "bell",
+                    color: .accentMed
+                )
+                
+                NotificationStatCard(
+                    title: "Unread",
+                    value: "\(appState.unreadCount)",
+                    iconName: "bell.badge",
+                    color: .accentHigh
+                )
+                
+                NotificationStatCard(
+                    title: "High Priority",
+                    value: "\(appState.highPriorityCount)",
+                    iconName: "exclamationmark.circle",
+                    color: .errorColor
+                )
+            }
+        }
+        .padding(LayoutTokens.spacing4)
+        .background(
+            RoundedRectangle(cornerRadius: LayoutTokens.cornerRadius)
+                .fill(Color.tileDark)
+                .shadow(
+                    color: ShadowTokens.cardShadow.color,
+                    radius: ShadowTokens.cardShadow.radius,
+                    x: ShadowTokens.cardShadow.x,
+                    y: ShadowTokens.cardShadow.y
+                )
+        )
+        .sheet(isPresented: $showingGlobalSettings) {
+            GlobalNotificationSettingsView()
+        }
+    }
+}
+
+struct NotificationStatCard: View {
+    let title: String
+    let value: String
+    let iconName: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: LayoutTokens.spacing2) {
+            Image(systemName: iconName)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.accentLow)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(LayoutTokens.spacing3)
+        .background(
+            RoundedRectangle(cornerRadius: LayoutTokens.spacing2)
+                .fill(Color.surfaceDark)
+        )
+    }
+}
+
+struct GlobalNotificationSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appState: AppState
+    @State private var digestEnabled = true
+    @State private var watchSyncEnabled = true
+    @State private var smartPriorityEnabled = true
+    @State private var batchingEnabled = true
+    @State private var digestTime = Date()
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Global Settings") {
+                    Toggle("Enable Smart Digest", isOn: $digestEnabled)
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                    
+                    Toggle("Sync to Apple Watch", isOn: $watchSyncEnabled)
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                    
+                    Toggle("Smart Priority Learning", isOn: $smartPriorityEnabled)
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                    
+                    Toggle("Notification Batching", isOn: $batchingEnabled)
+                        .foregroundColor(.white)
+                        .toggleStyle(SwitchToggleStyle(tint: .accentMed))
+                }
+                .listRowBackground(Color.tileDark)
+                
+                if digestEnabled {
+                    Section("Digest Schedule") {
+                        DatePicker("Digest Time", selection: $digestTime, displayedComponents: .hourAndMinute)
+                            .foregroundColor(.white)
+                        
+                        HStack {
+                            Text("Next digest")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text("Tomorrow at \(digestTime, formatter: timeFormatter)")
+                                .foregroundColor(.accentLow)
+                        }
+                    }
+                    .listRowBackground(Color.tileDark)
+                }
+                
+                Section("Watch Integration") {
+                    HStack {
+                        Image(systemName: appState.watchData.isReachable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundColor(appState.watchData.isReachable ? .green : .red)
+                        Text("Apple Watch")
+                            .foregroundColor(.white)
+                        Spacer()
+                        Text(appState.watchData.isReachable ? "Connected" : "Disconnected")
+                            .foregroundColor(appState.watchData.isReachable ? .green : .red)
+                    }
+                    
+                    Button("Force Sync to Watch") {
+                        appState.syncAllDataToWatch()
+                        HapticManager.shared.success()
+                    }
+                    .foregroundColor(.accentMed)
+                    .disabled(!appState.watchData.isReachable)
+                }
+                .listRowBackground(Color.tileDark)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.surfaceDark)
+            .navigationTitle("Notification Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.accentMed)
+                }
+            }
+        }
+    }
+    
+    private var timeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
     }
 }
 

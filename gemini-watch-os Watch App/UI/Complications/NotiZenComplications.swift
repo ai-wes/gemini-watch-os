@@ -211,23 +211,6 @@ extension WatchAppState {
         return (highCount, lowCount, battery)
     }
 
-    // Call this method in your main app whenever relevant data changes
-    func updateComplicationData() {
-        let defaults = UserDefaults(suiteName: "group.com.wesley.NotiZen") // Ensure this matches your App Group ID
-        defaults?.set(self.highPriorityNotifications.count, forKey: "complicationUnreadHigh")
-        defaults?.set(self.lowPriorityNotifications.count, forKey: "complicationUnreadLow")
-        
-        // Assuming battery level is available (0.0 to 1.0)
-        // For Watch, WKInterfaceDevice.current().batteryLevel gives you this.
-        // This needs to be updated regularly by the main app.
-        let currentDeviceBatteryLevel = WKInterfaceDevice.current().batteryLevel 
-        defaults?.set(currentDeviceBatteryLevel, forKey: "complicationBatteryLevel")
-        
-        defaults?.synchronize()
-
-        // Reload complications
-        WidgetCenter.shared.reloadTimelines(ofKind: "NotiZenComplications")
-        print("Complication data updated and timeline reloaded.")
-    }
+    // This method is now handled by WatchAppState.updateComplicationData()
 }
 

@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		DEAC798D2DE4322800D05E9C /* WatchKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEAC798C2DE4322800D05E9C /* WatchKit.framework */; };
+		DEC366F72DE5660100619D7B /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEC366F62DE5660100619D7B /* WatchConnectivity.framework */; };
+		DEC366F92DE5660E00619D7B /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEC366F82DE5660E00619D7B /* WatchConnectivity.framework */; };
 		DEF2D7C22DE331DF0027B483 /* gemini-watch-os Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DEF2D7C12DE331DF0027B483 /* gemini-watch-os Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -38,6 +40,8 @@
 /* Begin PBXFileReference section */
 		DE4998782DE541D000156A82 /* NotizeniOSController.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NotizeniOSController.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEAC798C2DE4322800D05E9C /* WatchKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchKit.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.5.sdk/System/Library/Frameworks/WatchKit.framework; sourceTree = DEVELOPER_DIR; };
+		DEC366F62DE5660100619D7B /* WatchConnectivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchConnectivity.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk/System/Library/Frameworks/WatchConnectivity.framework; sourceTree = DEVELOPER_DIR; };
+		DEC366F82DE5660E00619D7B /* WatchConnectivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchConnectivity.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.5.sdk/System/Library/Frameworks/WatchConnectivity.framework; sourceTree = DEVELOPER_DIR; };
 		DEF2D7BB2DE331DF0027B483 /* gemini-watch-os.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gemini-watch-os.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEF2D7C12DE331DF0027B483 /* gemini-watch-os Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "gemini-watch-os Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -60,6 +64,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEC366F72DE5660100619D7B /* WatchConnectivity.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +73,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEAC798D2DE4322800D05E9C /* WatchKit.framework in Frameworks */,
+				DEC366F92DE5660E00619D7B /* WatchConnectivity.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +83,8 @@
 		DEAC798B2DE4322800D05E9C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				DEC366F62DE5660100619D7B /* WatchConnectivity.framework */,
+				DEC366F82DE5660E00619D7B /* WatchConnectivity.framework */,
 				DEAC798C2DE4322800D05E9C /* WatchKit.framework */,
 			);
 			name = Frameworks;
@@ -455,7 +463,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "WLEnterprise.gemini-watch-os.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = WLEnterprise.NotizeniOSController.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -484,7 +492,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "WLEnterprise.gemini-watch-os.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = WLEnterprise.NotizeniOSController.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -504,7 +512,7 @@
 				DEVELOPMENT_TEAM = 4LU5M2K424;
 				INFOPLIST_KEY_CFBundleDisplayName = "gemini-watch-os";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "WLEnterprise.gemini-watch-os";
+				PRODUCT_BUNDLE_IDENTIFIER = WLEnterprise.NotizeniOSController;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -519,7 +527,7 @@
 				DEVELOPMENT_TEAM = 4LU5M2K424;
 				INFOPLIST_KEY_CFBundleDisplayName = "gemini-watch-os";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "WLEnterprise.gemini-watch-os";
+				PRODUCT_BUNDLE_IDENTIFIER = WLEnterprise.NotizeniOSController;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

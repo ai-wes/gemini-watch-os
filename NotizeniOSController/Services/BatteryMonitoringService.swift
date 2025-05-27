@@ -165,6 +165,8 @@ class BatteryMonitoringService: ObservableObject {
     
     deinit {
         batteryMonitoringTimer?.invalidate()
-        UIDevice.current.isBatteryMonitoringEnabled = false
+        Task { @MainActor in
+            UIDevice.current.isBatteryMonitoringEnabled = false
+        }
     }
 }

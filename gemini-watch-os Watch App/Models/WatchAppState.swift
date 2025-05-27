@@ -556,7 +556,7 @@ class WatchAppState: ObservableObject, NotificationCollectorDelegate {
         WatchConnectivityManager.shared.watchAppState = self
         session.activate()
         
-        print("WatchAppState: WatchConnectivity setup complete")
+        print("WatchAppState: WatchConnectivity setup initiated. isCompanionAppInstalled: \(session.isCompanionAppInstalled)")
         #endif
     }
     
@@ -590,13 +590,25 @@ class WatchAppState: ObservableObject, NotificationCollectorDelegate {
     
     func requestSyncFromiOS() {
         #if canImport(WatchConnectivity)
-        guard WCSession.default.isReachable else {
+        let session = WCSession.default
+        guard session.activationState == .activated else {
+            print("Watch: Session not activated, cannot sync")
+            return
+        }
+        
+        
+        guard session.isCompanionAppInstalled else {
+            print("Watch: Companion iOS app not installed, cannot sync")
+            return
+        }
+        
+        guard session.isReachable else {
             print("Watch: iPhone not reachable for sync request")
             return
         }
         
         let message = ["requestSync": true]
-        WCSession.default.sendMessage(message, replyHandler: { response in
+        session.sendMessage(message, replyHandler: { response in
             print("Watch: Sync request acknowledged: \(response)")
         }) { error in
             print("Watch: Failed to request sync from iOS: \(error.localizedDescription)")
@@ -702,13 +714,20 @@ class WatchConnectivityManager: NSObject, WCSessionDelegate {
     }
     
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        print("Watch: Session activation completed: \(activationState)")
+        print("Watch: Session activation completed: \(activationState), error: \(String(describing: error))")
+        print("Watch: isCompanionAppInstalled: \(session.isCompanionAppInstalled), isReachable: \(session.isReachable)")
         
-        if activationState == .activated {
+        if let error = error {
+            print("Watch: Activation error: \(error.localizedDescription)")
+        }
+        
+        if activationState == .activated && session.isCompanionAppInstalled {
             DispatchQueue.main.async {
-                // Request initial sync from iOS
+                // Request initial sync from iOS only if companion app is available
                 self.watchAppState?.requestSyncFromiOS()
             }
+        } else {
+            print("Watch: Cannot sync - activation: \(activationState), companion installed: \(session.isCompanionAppInstalled)")
         }
     }
     

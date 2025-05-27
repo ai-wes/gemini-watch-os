@@ -23,7 +23,7 @@ struct ContentView: View {
             CategoriesView()
                 .tabItem {
                     Image(systemName: "bell.badge")
-                    Text("Categories")
+                    Text("Notifications")
                 }
                 .tag(1)
             

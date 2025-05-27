@@ -60,36 +60,37 @@ class NotificationService: NSObject, ObservableObject {
     
     private func iconForApp(bundleIdentifier: String) -> String {
         // Map bundle identifiers to SF Symbols
-        switch bundleIdentifier {
-        case let id if id.contains("mail"):
+        let lowercased = bundleIdentifier.lowercased()
+        
+        if lowercased.contains("mail") {
             return "mail"
-        case let id if id.contains("message"):
+        } else if lowercased.contains("message") {
             return "message"
-        case let id if id.contains("phone"):
+        } else if lowercased.contains("phone") {
             return "phone"
-        case let id if id.contains("calendar"):
+        } else if lowercased.contains("calendar") {
             return "calendar"
-        case let id if id.contains("bank"):
+        } else if lowercased.contains("bank") {
             return "banknote"
-        case let id if id.contains("finance"):
+        } else if lowercased.contains("finance") {
             return "banknote"
-        case let id if id.contains("social"):
+        } else if lowercased.contains("social") {
             return "person.2"
-        case let id if id.contains("instagram"):
+        } else if lowercased.contains("instagram") {
             return "camera"
-        case let id if id.contains("twitter"):
+        } else if lowercased.contains("twitter") {
             return "bird"
-        case let id if id.contains("facebook"):
+        } else if lowercased.contains("facebook") {
             return "person.2"
-        case let id if id.contains("news"):
+        } else if lowercased.contains("news") {
             return "newspaper"
-        case let id if id.contains("game"):
+        } else if lowercased.contains("game") {
             return "gamecontroller"
-        case let id if id.contains("shopping"):
+        } else if lowercased.contains("shopping") {
             return "cart"
-        case let id if id.contains("amazon"):
+        } else if lowercased.contains("amazon") {
             return "cart"
-        default:
+        } else {
             return "app"
         }
     }
@@ -139,7 +140,7 @@ class NotificationService: NSObject, ObservableObject {
 
 // MARK: - UNUserNotificationCenterDelegate
 extension NotificationService: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Handle notification while app is in foreground
         let userInfo = notification.request.content.userInfo
         let title = notification.request.content.title
@@ -147,13 +148,15 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         let bundleIdentifier = userInfo["bundleIdentifier"] as? String ?? "unknown"
         let appName = userInfo["appName"] as? String ?? "Unknown App"
         
-        processNotification(title: title, body: body, appName: appName, bundleIdentifier: bundleIdentifier)
+        Task { @MainActor in
+            processNotification(title: title, body: body, appName: appName, bundleIdentifier: bundleIdentifier)
+        }
         
         // Show notification even when app is active
-        completionHandler([.alert, .sound, .badge])
+        completionHandler([.banner, .sound, .badge])
     }
     
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         // Handle notification tap
         let userInfo = response.notification.request.content.userInfo
         let title = response.notification.request.content.title
@@ -161,7 +164,9 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         let bundleIdentifier = userInfo["bundleIdentifier"] as? String ?? "unknown"
         let appName = userInfo["appName"] as? String ?? "Unknown App"
         
-        processNotification(title: title, body: body, appName: appName, bundleIdentifier: bundleIdentifier)
+        Task { @MainActor in
+            processNotification(title: title, body: body, appName: appName, bundleIdentifier: bundleIdentifier)
+        }
         
         completionHandler()
     }
