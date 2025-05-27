@@ -13,33 +13,67 @@ struct DashboardView: View {
     @EnvironmentObject var appState: WatchAppState
     
     var body: some View {
-        NavigationView {
-            List {
+        List {
                 // PRD A2: Horizontally-scrolling Cards
                 Section {
-                    TabView {
-                        UnreadHighCardView(
-                            count: appState.unreadHighPriorityCount, 
-                            latestMessage: appState.latestHighPriorityMessage
-                        )
-                        BatteryHoursCardView(hours: appState.batteryHoursRemaining)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            NavigationLink(destination: HiPriorityFeedView()) {
+                                UnreadHighCardView(
+                                    count: appState.unreadHighPriorityCount, 
+                                    latestMessage: appState.latestHighPriorityMessage
+                                )
+                                .frame(width: 140, height: 80)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            BatteryHoursCardView(
+                                hours: appState.batteryHoursRemaining,
+                                batteryPercentage: appState.batteryPercentage
+                            )
+                            .frame(width: 140, height: 80)
+                        }
+                        .padding(.horizontal)
                     }
-                    .frame(height: 100) // Adjust height as needed for watch cards
-                    .tabViewStyle(.page(indexDisplayMode: .never))
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
-                .padding(.horizontal, -CGFloat(DesignTokens.Layout.watchSafePadding)) // Fix type conversion
+                .padding(.horizontal, -CGFloat(DesignTokens.Layout.watchSafePadding))
                 
                 // PRD A2: List of notifications (up to 8 rows)
-                Section {
-                    ForEach(Array(appState.dashboardNotifications.prefix(8))) { notification in
-                        NotificationRowView(notification: notification)
+                Section("Recent Notifications") {
+                    if appState.dashboardNotifications.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No recent notifications")
+                                .foregroundColor(DesignTokens.Color.accentLow)
+                                .font(DesignTokens.Typography.watchCaption)
+                            
+                            Button("Show Digest Preview") {
+                                appState.shouldShowDigestPreviewSheet = true
+                            }
+                            .font(DesignTokens.Typography.watchFootnote)
+                            .foregroundColor(DesignTokens.Color.accentMed)
+                        }
+                    } else {
+                        ForEach(Array(appState.dashboardNotifications.prefix(8))) { notification in
+                            NotificationRowView(notification: notification)
+                        }
+                        
+                        if appState.currentDigests.count > 0 {
+                            NavigationLink(destination: DigestListView()) {
+                                HStack {
+                                    Text("View All Digests")
+                                    Spacer()
+                                    Text("\(appState.currentDigests.count)")
+                                        .foregroundColor(DesignTokens.Color.accentMed)
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            .listStyle(.carousel) // More appropriate for top-level watchOS navigation
         }
+        .listStyle(.carousel) // More appropriate for top-level watchOS navigation
+        .navigationTitle("NotiZen")
     }
 }
 

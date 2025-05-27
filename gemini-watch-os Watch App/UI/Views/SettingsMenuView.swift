@@ -14,8 +14,7 @@ struct SettingsMenuView: View {
     @State private var navigateToAbout = false
 
     var body: some View {
-        NavigationView { // Each settings section might navigate
-            List {
+        List {
                 Section(header: Text("Notification Settings").font(DesignTokens.Typography.watchCaption)) {
                     NavigationLink(destination: CategoriesSettingsView()) {
                         Label("Categories", systemImage: "list.bullet.indent")
@@ -36,12 +35,11 @@ struct SettingsMenuView: View {
                         Label("About NotiZen", systemImage: "info.circle")
                     }
                 }
-            }
-            .navigationTitle("Settings")
-            .listStyle(.plain) // Standard for settings menus
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(DesignTokens.Color.surfaceDark)
         }
+        .navigationTitle("Settings")
+        .listStyle(.plain) // Standard for settings menus
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.Color.surfaceDark)
     }
 }
 
@@ -74,24 +72,25 @@ struct DigestTimeSettingsView: View {
     // TODO: Persist this to appState/UserPreferences
 
     var body: some View {
-        VStack {
-            Text("Select Digest Time")
-                .font(DesignTokens.Typography.watchHeadline)
-                .padding()
-            DatePicker("Digest Time", selection: $digestTime, displayedComponents: .hourAndMinute)
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .frame(maxWidth: .infinity)
-                .padding()
-            // PRD: large digits - wheel style inherently provides this.
-            Button("Save") {
-                // TODO: Save appState.preferredDigestTime = digestTime
-                // appState.savePreference(key: "digestTime", value: digestTime) // Example
-                WKInterfaceDevice.current().play(.success) // PRD Haptics
+        Form {
+            Section(header: Text("Digest Collection Period").font(DesignTokens.Typography.watchCaption)) {
+                DatePicker("Start Time", selection: $appState.digestStartTime, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
+                
+                DatePicker("End Time", selection: $appState.digestEndTime, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
             }
-            .padding()
+            
+            Section(footer: Text("Notifications will be collected into digests during this time period").font(DesignTokens.Typography.watchCaption).foregroundColor(DesignTokens.Color.accentLow)) {
+                Button("Save Settings") {
+                    appState.saveDigestTimePreference()
+                    WKInterfaceDevice.current().play(.success)
+                }
+                .frame(maxWidth: .infinity)
+                .foregroundColor(DesignTokens.Color.accentHigh)
+            }
         }
-        .navigationTitle("Digest Time")
+        .navigationTitle("Digest Times")
     }
 }
 

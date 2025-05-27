@@ -6,22 +6,54 @@ struct UnreadHighCardView: View {
     let count: Int
     let latestMessage: String
     
+    private var urgencyColor: Color {
+        switch count {
+        case 0:
+            return DesignTokens.Color.accentLow
+        case 1...2:
+            return DesignTokens.Color.accentMed
+        default:
+            return DesignTokens.Color.error
+        }
+    }
+    
+    private var urgencyIcon: String {
+        switch count {
+        case 0:
+            return "checkmark.circle.fill"
+        case 1...2:
+            return "bell.badge.fill"
+        default:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+    
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Image(systemName: "bell.badge.fill") // PRD Iconography
-                    .foregroundColor(DesignTokens.Color.accentHigh) // PRD Palette
-                Text("\(count) critical")
-                    .font(DesignTokens.Typography.watchHeadline) // PRD Typography
+                Image(systemName: urgencyIcon)
+                    .foregroundColor(urgencyColor)
+                Text(count == 0 ? "All clear" : "\(count) critical")
+                    .font(DesignTokens.Typography.watchHeadline)
+                    .foregroundColor(urgencyColor)
             }
-            Text(latestMessage)
-                .font(DesignTokens.Typography.watchCaption)
-                .lineLimit(1)
+            
+            if count == 0 {
+                Text("No urgent notifications")
+                    .font(DesignTokens.Typography.watchCaption)
+                    .foregroundColor(DesignTokens.Color.accentLow)
+            } else {
+                Text(latestMessage.isEmpty ? "High priority notifications" : latestMessage)
+                    .font(DesignTokens.Typography.watchCaption)
+                    .foregroundColor(DesignTokens.Color.accentLow)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(DesignTokens.Layout.spacing2) // PRD Grid
-        .background(DesignTokens.Color.tileDark) // PRD Palette
-        .cornerRadius(DesignTokens.Layout.cornerRadiusMedium) // PRD Shapes
+        .padding(DesignTokens.Layout.spacing2)
+        .background(DesignTokens.Color.tileDark)
+        .cornerRadius(DesignTokens.Layout.cornerRadiusMedium)
     }
 }
 

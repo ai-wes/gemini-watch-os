@@ -4,7 +4,7 @@ import WatchKit
 
 // Represents the shared state and data for the NotiZen watchOS app.
 // This will be the single source of truth for dynamic data displayed in views.
-class WatchAppState: ObservableObject {
+class WatchAppState: ObservableObject, NotificationCollectorDelegate {
     
     // MARK: - Published Properties for UI Updates
     
@@ -25,7 +25,8 @@ class WatchAppState: ObservableObject {
     
     // User Preferences (subset relevant to watch display)
     @Published var isBatteryGuardSmartModeEnabled: Bool = true
-    @Published var preferredDigestTime: Date = Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: Date())! // Default 5 PM
+    @Published var digestStartTime: Date = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date())! // Default 9 AM
+    @Published var digestEndTime: Date = Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: Date())! // Default 5 PM
     @Published var userCategories: [CategoryPreference] = [
         CategoryPreference(name: "Finance", isEnabled: true, keywords: ["bank", "payment", "transaction", "invoice", "wire"]),
         CategoryPreference(name: "Social", isEnabled: true, keywords: ["mention", "reply", "message", "friend", "post"]),
@@ -51,6 +52,7 @@ class WatchAppState: ObservableObject {
 
     // Declare cloudSyncCoordinator as a let property without an initial value
     private let cloudSyncCoordinator: CloudSyncCoordinator
+    private let notificationCollector = NotificationCollector()
     
     private var cancellables = Set<AnyCancellable>()
     private var digestUpdateTimer: Timer? // Timer for scheduling digest preview
@@ -65,21 +67,29 @@ class WatchAppState: ObservableObject {
             isForPreviewEnvironment = true
         }
         #endif
-        self.cloudSyncCoordinator = CloudSyncCoordinator(forPreview: isForPreviewEnvironment)
+        // Temporarily disable CloudSyncCoordinator to prevent crashes
+        // self.cloudSyncCoordinator = CloudSyncCoordinator(forPreview: isForPreviewEnvironment)
+        self.cloudSyncCoordinator = CloudSyncCoordinator(forPreview: true) // Force preview mode
 
         // Initialize AI Engines and Services
         self.notificationClassifier = NotificationClassifier()
         self.batchingEngine = BatchingEngine()
         self.summarizer = Summarizer()
         self.batterySampler = BatterySampler()
+        
+        // Set up notification collection
+        self.notificationCollector.delegate = self
 
-        // TODO: Initialize and connect to actual data sources and services.
-        // For now, load dummy data or initial states.
+        // Initialize battery monitoring and start sampling
+        batterySampler.startSampling()
+        
+        // Load sample data for development
         loadDummyData()
         
-        // Start battery sampling
-        batterySampler.startSampling()
-        scheduleDigestTimer() // Initial schedule for digest
+        // Schedule digest updates
+        scheduleDigestTimer()
+        
+        print("WatchAppState: Initialization complete")
         startMonitoringAppGroupNotifications() // Start monitoring for new notifications
 
         // Subscribe to battery sampler updates to update predictions
@@ -304,7 +314,7 @@ class WatchAppState: ObservableObject {
         // Add some digests or recent low-priority notifications
         for digest in currentDigests.prefix(2) {
             let (title, _) = summarizer.summarize(digest: digest)
-            items.append(WatchNotificationItem(id: digest.id, title: title, messageSnippet: "\\(digest.notifications.count) items", timestamp: digest.creationDate, type: .digest))
+            items.append(WatchNotificationItem(id: digest.id, title: title, messageSnippet: "\(digest.notifications.count) items", timestamp: digest.creationDate, type: .digest))
         }
         
         // If no digests, show some recent low-priority items directly
@@ -315,6 +325,60 @@ class WatchAppState: ObservableObject {
         }
         
         self.dashboardNotifications = items.sorted(by: { $0.timestamp > $1.timestamp }).prefix(5).map{$0} // Show latest 5 items
+    }
+    
+    // MARK: - NotificationCollectorDelegate
+    
+    func didReceiveNotification(_ notification: NotificationEvent) {
+        DispatchQueue.main.async {
+            self.processNewNotification(notification)
+        }
+    }
+    
+    private func processNewNotification(_ notification: NotificationEvent) {
+        // Classify the notification
+        let classificationResult = notificationClassifier.classify(
+            notification: notification, 
+            userCategories: userCategories
+        )
+        
+        // Create a new notification with classification results
+        var classifiedNotification = notification
+        classifiedNotification.score = classificationResult.priority == .high ? 0.8 : 
+                                     (classificationResult.priority == .medium ? 0.5 : 0.2)
+        
+        // Route based on priority
+        switch classificationResult.priority {
+        case .high:
+            highPriorityNotifications.append(classifiedNotification)
+            highPriorityFeed.append(classifiedNotification)
+            unreadHighPriorityCount = highPriorityNotifications.count
+            latestHighPriorityMessage = notification.title ?? notification.message
+            
+            // Trigger haptic feedback for high priority
+            WKInterfaceDevice.current().play(.notification)
+            
+        case .medium:
+            // Add to low priority for now, could create separate medium priority handling
+            lowPriorityNotifications.append(classifiedNotification)
+            
+        case .low:
+            lowPriorityNotifications.append(classifiedNotification)
+            if classificationResult.shouldDigest {
+                batchingEngine.addNotificationToBatch(classifiedNotification)
+            }
+            
+        case .unknown:
+            // Handle unknown priority as low priority
+            lowPriorityNotifications.append(classifiedNotification)
+            batchingEngine.addNotificationToBatch(classifiedNotification)
+        }
+        
+        // Update dashboard and complications
+        updateDashboardNotifications()
+        updateComplicationData()
+        
+        print("WatchAppState: Processed \(classificationResult.priority) priority notification: \(notification.title ?? "No Title")")
     }
 
     // MARK: - Digest Management
@@ -354,8 +418,8 @@ class WatchAppState: ObservableObject {
         // Remove existing timer if any
         digestUpdateTimer?.invalidate()
         
-        // Calculate time until next preferredDigestTime
-        var nextDigestPreviewTime = Calendar.current.nextDate(after: Date(), matching: Calendar.current.dateComponents([.hour, .minute], from: preferredDigestTime), matchingPolicy: .nextTime)!
+        // Calculate time until next digestEndTime (when we should show digest)
+        var nextDigestPreviewTime = Calendar.current.nextDate(after: Date(), matching: Calendar.current.dateComponents([.hour, .minute], from: digestEndTime), matchingPolicy: .nextTime)!
         
         // If the time is in the past for today, schedule for tomorrow
         if nextDigestPreviewTime < Date() {
@@ -423,11 +487,12 @@ class WatchAppState: ObservableObject {
     }
     
     func saveDigestTimePreference() {
-        // This is where you would persist preferredDigestTime, e.g., to UserDefaults or CoreData
+        // This is where you would persist digest times, e.g., to UserDefaults or CoreData
         // For now, it's already updated in @Published var, if persistence is added, call it here.
-        print("Digest time preference saved: \(preferredDigestTime)")
-        // self.cloudSyncCoordinator.syncUserPreference(key: "preferredDigestTime", value: preferredDigestTime)
-        scheduleDigestTimer() // Reschedule timer with new time
+        print("Digest time preferences saved: \(digestStartTime) to \(digestEndTime)")
+        // self.cloudSyncCoordinator.syncUserPreference(key: "digestStartTime", value: digestStartTime)
+        // self.cloudSyncCoordinator.syncUserPreference(key: "digestEndTime", value: digestEndTime)
+        scheduleDigestTimer() // Reschedule timer with new times
     }
 
 
@@ -505,16 +570,14 @@ enum NotificationPriority {
 // Add missing methods to WatchAppState
 extension WatchAppState {
     func loadDummyData(slightlyModify: Bool = false) {
-        // Placeholder for loading dummy data
-        self.unreadHighPriorityCount = slightlyModify ? 3 : 2
-        self.latestHighPriorityMessage = slightlyModify ? "New urgent message..." : "Wire transfer..."
+        // Initialize with realistic values
         self.batteryHoursRemaining = slightlyModify ? 16 : 18
         
-        // Create some dummy dashboard notifications
-        self.dashboardNotifications = [
-            WatchNotificationItem(title: "Messages", messageSnippet: "1 new", timestamp: Date(), type: .highPriority),
-            WatchNotificationItem(title: "Finance", messageSnippet: "-", timestamp: Date().addingTimeInterval(-300), type: .lowPriority)
-        ]
+        // Initialize with empty state - no hardcoded notifications
+        // This ensures a clean start for the user
+        print("WatchAppState: Starting with clean state - no sample notifications loaded")
+        
+        print("WatchAppState: Loaded realistic sample data. SlightlyModify: \(slightlyModify)")
     }
     
     func archiveNotification(id: UUID) {

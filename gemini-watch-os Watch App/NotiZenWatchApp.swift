@@ -13,7 +13,7 @@ struct NotiZenWatch_Watch_AppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            ContentView()
                 .environmentObject(appState) // Inject into the environment
         }
     }

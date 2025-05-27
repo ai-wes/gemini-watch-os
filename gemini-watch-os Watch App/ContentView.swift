@@ -6,21 +6,21 @@ struct ContentView: View {
     @EnvironmentObject var appState: WatchAppState
 
     var body: some View {
-        TabView {
-            // Dashboard View
-            DashboardView()
-                .tabItem {
-                    Label("Dashboard", systemImage: "house")
-                }
+        NavigationView {
+            TabView {
+                // Dashboard View
+                DashboardView()
+                    .tag(0)
 
-            // Settings View
-            SettingsMenuView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+                // Settings View
+                SettingsMenuView()
+                    .tag(1)
+            }
+            .tabViewStyle(.page)
         }
         .sheet(isPresented: $appState.shouldShowDigestPreviewSheet) {
             DigestPreviewSheetView()
+                .environmentObject(appState)
         }
     }
 }

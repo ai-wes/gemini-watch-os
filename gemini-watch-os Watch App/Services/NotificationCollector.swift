@@ -4,7 +4,13 @@ import os.log
 
 // As per PRD: Subscribe to UNNotificationServiceExtension, capture metadata, redact payload
 
+protocol NotificationCollectorDelegate: AnyObject {
+    func didReceiveNotification(_ notification: NotificationEvent)
+}
+
 class NotificationCollector: UNNotificationServiceExtension {
+    
+    weak var delegate: NotificationCollectorDelegate?
 
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
@@ -36,9 +42,8 @@ class NotificationCollector: UNNotificationServiceExtension {
                 messageContent = "(subtitle)(body)" // Corrected newline and interpolation
             }
 
-            // Create a NotificationEvent (assuming this will be saved to Core Data later)
-            // For now, we're just logging. The actual storage will be handled by a data persistence service.
-            let _ = NotificationEvent(
+            // Create a NotificationEvent and send to delegate
+            let notificationEvent = NotificationEvent(
                 id: UUID(), // Or derive from request identifier if appropriate
                 date: timestamp,
                 appName: bundleID, // Using bundleID for appName
@@ -49,6 +54,9 @@ class NotificationCollector: UNNotificationServiceExtension {
                 score: 0.0, // Classification score to be filled by NotifClassifier
                 digestedID: nil
             )
+            
+            // Send to delegate for processing
+            delegate?.didReceiveNotification(notificationEvent)
             
             // TODO: Implement saving of notificationEvent to local store (CoreData + CloudKit)
             // TODO: Trigger NotificationClassifier

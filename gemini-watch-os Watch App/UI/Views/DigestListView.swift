@@ -7,7 +7,6 @@ struct DigestListView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
             VStack(alignment: .leading) {
                 if appState.lowPriorityNotifications.isEmpty {
                     Spacer()
@@ -25,18 +24,17 @@ struct DigestListView: View {
                     }
                     .listStyle(.carousel)
                 }
-            }
-            .navigationTitle("Digest Details")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
-                    }
+        }
+        .navigationTitle("Digest Details")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close") {
+                    dismiss()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(DesignTokens.Color.surfaceDark.edgesIgnoringSafeArea(.all))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.Color.surfaceDark.edgesIgnoringSafeArea(.all))
     }
 }
 

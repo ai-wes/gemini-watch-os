@@ -37,29 +37,134 @@ class NotificationClassifier {
             }
         }
 
-        // 2. Default classification logic if no user category matches
-        // This can be expanded with more sophisticated rules or a basic ML model in the future.
-        if notification.appName.lowercased().contains("bank") || notification.message.lowercased().contains("urgent") || notification.message.lowercased().contains("alert") {
-            return (.high, "Finance", false) // Example: High priority, Finance, don't digest
-        } else if notification.appName.lowercased().contains("calendar") || notification.message.lowercased().contains("meeting") || notification.message.lowercased().contains("reminder") {
-            return (.high, "Reminders", false)
-        } else if notification.appName.lowercased().contains("message") || notification.appName.lowercased().contains("mail") || notification.appName.lowercased().contains("chat") {
-            // Could be medium or high depending on sender or content, for now, medium.
-            return (.medium, "Communication", false)
-        } else if notification.appName.lowercased().contains("social") || notification.appName.lowercased().contains("news") {
-            return (.low, "Social", true) // Example: Low priority, Social, digest
+        // 2. Advanced classification logic with scoring system
+        let bundleID = notification.bundleID.lowercased()
+        let appName = notification.appName.lowercased()
+        let title = (notification.title ?? "").lowercased()
+        let message = notification.message.lowercased()
+        let combinedText = "\(title) \(message)"
+        
+        // Calculate scores for different priority levels
+        let highScore = calculateHighPriorityScore(bundleID: bundleID, appName: appName, text: combinedText)
+        let mediumScore = calculateMediumPriorityScore(bundleID: bundleID, appName: appName, text: combinedText)
+        
+        // Time-based adjustments
+        let timeMultiplier = getTimeBasedMultiplier()
+        let finalHighScore = highScore * timeMultiplier
+        let finalMediumScore = mediumScore * timeMultiplier
+        
+        // Determine category and priority
+        if finalHighScore >= 0.7 {
+            let category = getCategoryFromHighPriority(bundleID: bundleID, appName: appName, text: combinedText)
+            return (.high, category, false)
+        } else if finalMediumScore >= 0.5 {
+            let category = getCategoryFromMediumPriority(bundleID: bundleID, appName: appName, text: combinedText)
+            return (.medium, category, false)
+        } else {
+            let category = getCategoryFromLowPriority(bundleID: bundleID, appName: appName)
+            return (.low, category, true)
         }
-
-        // Default for anything else
-        return (.medium, "General", true) // Default to medium, digestable, if not specifically handled
     }
 
     // MARK: - Helper Methods
-
-    // TODO: Implement helper methods for loading rules, processing text, etc.
-    // private func loadRules() {
-    //     // Load rules from a configuration file or user defaults.
-    // }
+    
+    private func calculateHighPriorityScore(bundleID: String, appName: String, text: String) -> Double {
+        var score: Double = 0.0
+        
+        // Critical app patterns
+        let criticalApps = ["bank", "finance", "payment", "paypal", "venmo", "cashapp", "chase", "wellsfargo", "bofa"]
+        if criticalApps.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
+            score += 0.6
+        }
+        
+        // Security and urgent keywords
+        let urgentKeywords = ["urgent", "alert", "emergency", "fraud", "security", "breach", "suspicious", "unauthorized", "failed login", "verify"]
+        let urgentMatches = urgentKeywords.filter { text.contains($0) }.count
+        score += min(Double(urgentMatches) * 0.3, 0.8)
+        
+        // Financial keywords
+        let financialKeywords = ["payment", "transaction", "charge", "declined", "overdraft", "deposit", "transfer"]
+        let financialMatches = financialKeywords.filter { text.contains($0) }.count
+        score += min(Double(financialMatches) * 0.2, 0.4)
+        
+        return min(score, 1.0)
+    }
+    
+    private func calculateMediumPriorityScore(bundleID: String, appName: String, text: String) -> Double {
+        var score: Double = 0.0
+        
+        // Work-related apps
+        let workApps = ["slack", "teams", "zoom", "calendar", "outlook", "gmail", "work", "enterprise"]
+        if workApps.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
+            score += 0.4
+        }
+        
+        // Important keywords
+        let importantKeywords = ["meeting", "deadline", "reminder", "appointment", "schedule", "call", "conference"]
+        let importantMatches = importantKeywords.filter { text.contains($0) }.count
+        score += min(Double(importantMatches) * 0.2, 0.5)
+        
+        // Communication apps (but not social media)
+        let communicationApps = ["messages", "whatsapp", "telegram", "signal", "imessage", "mail"]
+        if communicationApps.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
+            score += 0.3
+        }
+        
+        return min(score, 1.0)
+    }
+    
+    private func getTimeBasedMultiplier() -> Double {
+        let hour = Calendar.current.component(.hour, from: Date())
+        
+        // Higher priority during work hours (9 AM - 6 PM)
+        if hour >= 9 && hour <= 18 {
+            return 1.2
+        }
+        // Lower priority during sleep hours (11 PM - 7 AM)
+        else if hour >= 23 || hour <= 7 {
+            return 0.7
+        }
+        // Normal priority during other hours
+        else {
+            return 1.0
+        }
+    }
+    
+    private func getCategoryFromHighPriority(bundleID: String, appName: String, text: String) -> String {
+        if bundleID.contains("bank") || appName.contains("bank") || text.contains("payment") || text.contains("transaction") {
+            return "Finance"
+        } else if text.contains("security") || text.contains("fraud") || text.contains("unauthorized") {
+            return "Security"
+        } else if text.contains("emergency") || text.contains("urgent") {
+            return "Emergency"
+        } else {
+            return "Important"
+        }
+    }
+    
+    private func getCategoryFromMediumPriority(bundleID: String, appName: String, text: String) -> String {
+        if bundleID.contains("calendar") || appName.contains("calendar") || text.contains("meeting") {
+            return "Calendar"
+        } else if bundleID.contains("mail") || appName.contains("mail") || bundleID.contains("message") {
+            return "Communication"
+        } else if bundleID.contains("work") || bundleID.contains("slack") || bundleID.contains("teams") {
+            return "Work"
+        } else {
+            return "General"
+        }
+    }
+    
+    private func getCategoryFromLowPriority(bundleID: String, appName: String) -> String {
+        if bundleID.contains("social") || appName.contains("social") || bundleID.contains("twitter") || bundleID.contains("facebook") {
+            return "Social"
+        } else if bundleID.contains("news") || appName.contains("news") {
+            return "News"
+        } else if bundleID.contains("game") || appName.contains("game") {
+            return "Entertainment"
+        } else {
+            return "Other"
+        }
+    }
 
     // TODO: Define `NotificationPriority` enum if not already globally available.
     // enum NotificationPriority {

@@ -8,28 +8,67 @@ struct HiPriorityFeedView: View {
 
     var body: some View {
         List {
-            ForEach(appState.highPriorityFeed) { notification in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(notification.title ?? "No Title")
-                            .font(.headline) // As per PRD: SF Compact 15 pt headline (already default for headline)
-                            .lineLimit(2)
-                        Text(notification.bundleID) // Placeholder for app icon chip
-                            .font(.caption) // As per PRD: SF Compact 10 pt caption
-                            .opacity(0.7)
-                    }
-                    Spacer()
-                    // TODO: Add app icon chip (e.g., based on category or bundleID)
-                    Image(systemName: appIconName(for: notification.category))
+            if appState.highPriorityFeed.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 40))
                         .foregroundColor(DesignTokens.Color.accentHigh)
+                    
+                    Text("All Caught Up!")
+                        .font(DesignTokens.Typography.watchTitle)
+                        .foregroundColor(DesignTokens.Color.accentHigh)
+                    
+                    Text("No high priority notifications")
+                        .font(DesignTokens.Typography.watchCaption)
+                        .foregroundColor(DesignTokens.Color.accentLow)
+                        .multilineTextAlignment(.center)
                 }
-                .swipeActions(edge: .leading, allowsFullSwipe: false) { // PRD A4: Swiping row left triages (Archive)
-                    Button(role: .destructive) {
-                        archiveNotification(notification.id)
-                    } label: {
-                        Label("Archive", systemImage: "archivebox.fill")
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else {
+                ForEach(appState.highPriorityFeed) { notification in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(notification.title ?? "High Priority Alert")
+                                    .font(DesignTokens.Typography.watchHeadline)
+                                    .foregroundColor(.primary)
+                                    .lineLimit(2)
+                                
+                                Text(notification.appName)
+                                    .font(DesignTokens.Typography.watchCaption)
+                                    .foregroundColor(DesignTokens.Color.accentMed)
+                            }
+                            
+                            Spacer()
+                            
+                            VStack {
+                                Image(systemName: appIconName(for: notification.category))
+                                    .font(.title2)
+                                    .foregroundColor(priorityColor(for: notification.score))
+                                
+                                Text(timeAgo(from: notification.date))
+                                    .font(DesignTokens.Typography.watchCaption)
+                                    .foregroundColor(DesignTokens.Color.accentLow)
+                            }
+                        }
+                        
+                        if !notification.message.isEmpty {
+                            Text(notification.message)
+                                .font(DesignTokens.Typography.watchFootnote)
+                                .foregroundColor(.secondary)
+                                .lineLimit(3)
+                                .padding(.top, 2)
+                        }
                     }
-                    .tint(DesignTokens.Color.accentLow)
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            archiveNotification(notification.id)
+                        } label: {
+                            Label("Archive", systemImage: "archivebox.fill")
+                        }
+                        .tint(DesignTokens.Color.accentLow)
+                    }
                 }
             }
         }
@@ -79,6 +118,31 @@ struct HiPriorityFeedView: View {
             return .yellow // Standard yellow for warning
         }
         return DesignTokens.Color.accentHigh // Green for good battery
+    }
+    
+    private func priorityColor(for score: Double) -> Color {
+        if score >= 0.7 {
+            return DesignTokens.Color.error
+        } else if score >= 0.5 {
+            return DesignTokens.Color.accentMed
+        } else {
+            return DesignTokens.Color.accentLow
+        }
+    }
+    
+    private func timeAgo(from date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        let minutes = Int(interval / 60)
+        let hours = Int(interval / 3600)
+        
+        if minutes < 60 {
+            return "\(minutes)m"
+        } else if hours < 24 {
+            return "\(hours)h"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)d"
+        }
     }
 }
 

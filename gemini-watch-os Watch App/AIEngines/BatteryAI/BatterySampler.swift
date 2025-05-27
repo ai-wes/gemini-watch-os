@@ -57,7 +57,15 @@ class BatterySampler: NSObject {
         // For a background sampler, this is harder.
         // CPU load is also not directly available; MetricKit provides aggregated data.
 
-        let currentLevel = (batteryLevel == -1.0) ? (currentSnapshots.last?.level ?? 0.5) : batteryLevel // Use last known or default if unknown
+        // Handle unknown battery level more gracefully
+        let currentLevel: Double
+        if batteryLevel == -1.0 {
+            // Try to get the last known level, or use a more realistic default
+            currentLevel = currentSnapshots.last?.level ?? 1.0 // Default to full if truly unknown
+            print("Warning: Battery level unknown, using last known or default value")
+        } else {
+            currentLevel = batteryLevel
+        }
 
         let snapshot = BatterySnapshot(
             date: timestamp,
